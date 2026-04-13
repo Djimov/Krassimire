@@ -1,10 +1,10 @@
-# Riscos
+# Riscos do projecto
 
-| Risco | Impacto | Mitigação |
-|---|---|---|
-| Integração difícil com o Copernicus | atraso no núcleo do projecto | validar cedo STAC + Process API com pedidos mínimos |
-| Excesso de âmbito | MVP incompleto | seguir MoSCoW de forma disciplinada |
-| Complexidade da visualização das imagens | atraso e instabilidade | começar com preview simples antes de optimizar |
-| Dependência de APIs externas | falhas fora do controlo do projecto | tratamento de erro robusto e mensagens claras |
-| Falta de tempo para documentação | incoerência entre código e relatório | actualizar docs semanalmente |
-| Curva de aprendizagem da stack | atraso inicial | usar stack mais integrada e evitar complexidade prematura |
+| Risco | Impacto | Probabilidade | Mitigação |
+|---|---|---:|---|
+| Integração difícil com a API externa | Atraso no núcleo do projecto | Média | Validar cedo a autenticação e a descoberta de produtos, encapsulando a integração em serviços próprios |
+| Sobredimensionamento do âmbito | MVP incompleto na entrega | Alta | Seguir rigorosamente a priorização MoSCoW e proteger os Must Have |
+| Complexidade da visualização de imagens | Atrasos na interface e na comparação temporal | Média | Começar com visualização simples e evoluir iterativamente |
+| Dependência de serviços externos | Falhas fora do controlo do estudante | Média | Implementar tratamento de erros robusto e preparar cenários de contingência para demonstração |
+| Falta de tempo para testes e relatório | Entrega final tecnicamente fraca ou incoerente | Média | Reservar semanas específicas para testes, documentação e revisão final |
+| Curva de aprendizagem das APIs do Copernicus | Atrasos iniciais | Média | Fazer prova de conceito cedo e documentar decisões e limitações encontradas |

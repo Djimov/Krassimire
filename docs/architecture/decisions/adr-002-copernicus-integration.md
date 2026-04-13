@@ -1,19 +1,24 @@
-# ADR-002 — Estratégia de integração com o Copernicus
+# ADR-002 — Integração com Copernicus via serviços internos e rotas de API
+
+## Estado
+Aceite
 
 ## Contexto
-O projecto necessita de procurar imagens Sentinel-2 e gerar visualizações úteis para o MVP.
+A aplicação depende do Copernicus Data Space Ecosystem para autenticação, descoberta de produtos Sentinel-2 e obtenção de recursos de visualização. Expor toda essa complexidade directamente ao frontend aumentaria o acoplamento e dificultaria o tratamento uniforme de erros.
 
 ## Decisão
-Usar:
-1. **STAC API** para descoberta e filtragem temporal/espacial;
-2. **Process API** para gerar previews e renderizações;
-3. **OData** apenas como apoio complementar quando necessário.
+Encapsular a integração com o Copernicus em **serviços internos** e **rotas de API** da aplicação Next.js.
 
-## Razão
-- STAC ajusta-se naturalmente à pesquisa espacial e temporal;
-- Process API suporta geração de imagens em composições específicas;
-- evita acoplamento excessivo a uma única interface.
+## Consequências positivas
+- isolamento da lógica de integração;
+- maior clareza do frontend;
+- tratamento centralizado de erros;
+- maior facilidade de adaptação futura a mudanças dos endpoints.
 
-## Consequências
-- necessidade de lidar com OAuth2 para o Process API;
-- separação clara entre descoberta de itens e renderização.
+## Consequências negativas
+- necessidade de desenhar uma camada intermédia adicional;
+- possibilidade de alguma duplicação de transformação de dados caso não haja cuidado de implementação.
+
+## Alternativas consideradas
+- consumo directo da STAC API no frontend;
+- uso exclusivo de um único endpoint, sem separação entre descoberta e visualização.

@@ -1,26 +1,30 @@
-# Changelog
+# Changelog do projecto
 
-## Semana 5 · 13/04/2026
+## Semana 1–2
+- leitura da guia da unidade curricular e clarificação do funcionamento da UC;
+- escolha da Opção A e selecção do tema do projecto;
+- definição inicial da sinopse e do problema;
+- preparação da primeira proposta curta.
 
-### Concluído
-- consolidação da proposta inicial;
-- definição e revisão do MVP;
-- priorização MoSCoW;
-- reformulação da stack para Next.js + TypeScript;
-- produção inicial de C4 nível 1 e 2;
-- elaboração do modelo de dados preliminar;
-- reorganização do repositório de acordo com o guia da UC;
-- registo das ADRs iniciais;
-- criação da secção de IA utilizada.
+## Semana 3–4
+- aprofundamento da proposta para versão operacional 2.0/2.1;
+- revisão crítica da stack tecnológica inicialmente considerada;
+- mudança de stack para Next.js + TypeScript + Leaflet + Copernicus + Vitest;
+- levantamento de requisitos funcionais e não funcionais;
+- priorização de requisitos com MoSCoW;
+- definição do MVP e dos critérios de aceitação;
+- documentação do C4 nível 1 e 2;
+- definição do modelo de dados preliminar;
+- criação e organização do repositório GitHub com estrutura académica.
 
-### Bloqueios / dependências
-- criação do OAuth client no Copernicus;
-- validação prática dos fluxos STAC + Process API;
-- arranque da aplicação Next.js.
+## Situação actual
+- proposta técnica consolidada;
+- repositório estruturado;
+- documentação-base pronta para acompanhamento;
+- implementação do sistema ainda em fase inicial.
 
-### Próxima semana
-- arrancar o projecto Next.js;
-- implementar a base do layout;
-- integrar o mapa com Leaflet;
-- criar a primeira rota interna para pesquisa na STAC API;
-- preparar o primeiro diagrama draw.io.
+## Próximos passos imediatos
+- actualizar o repositório remoto com o scaffold actual;
+- configurar a aplicação Next.js localmente;
+- iniciar a implementação do mapa interactivo;
+- preparar a integração funcional com a STAC API do Copernicus.
