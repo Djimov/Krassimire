@@ -1,39 +1,61 @@
-# Plano de testes inicial
+# Plano de testes
 
-## 1. Objectivo
-Este documento identifica as áreas críticas do sistema que deverão ser validadas ao longo do desenvolvimento do MVP.
+Explorador Temporal de Imagens de Satélite
+Krassimire Iankov Djimov · 2301201 · Universidade Aberta
+Última actualização: 2026-04-18
 
-## 2. Áreas prioritárias de teste
+---
 
-### Validação de parâmetros
-- datas inválidas;
-- intervalo temporal invertido;
-- valor de cobertura de nuvens fora do intervalo esperado;
-- ausência de região seleccionada.
+## Estratégia
 
-### Integração com serviços
-- formatação correcta dos pedidos para a API externa;
-- transformação dos resultados recebidos;
-- comportamento perante falhas de autenticação ou indisponibilidade.
+- **Testes unitários** (Vitest): validadores, transformações de dados, i18n
+- **Testes de integração** (Vitest): rotas internas com mocks dos serviços externos
+- **Testes manuais**: critérios de aceitação do MVP verificados em browser
 
-### Lógica de domínio
-- ordenação cronológica dos resultados;
-- selecção de imagem para visualização;
-- selecção de duas imagens para comparação;
-- preservação coerente do estado da comparação.
+---
 
-### Interface e fluxo principal
-- apresentação da timeline;
-- renderização de estados vazios;
-- apresentação de mensagens de erro;
-- alternância entre composições de bandas.
+## Testes unitários implementados
 
-## 3. Estratégia de teste
+| Ficheiro | Suite | Casos | Estado |
+|---|---|---|---|
+| validators.test.ts | validateDate | 5 | ✅ |
+| validators.test.ts | validateDateRange | 5 | ✅ |
+| validators.test.ts | validateRegion | 6 | ✅ |
+| validators.test.ts | validateSearchParams | 3 | ✅ |
 
-- testes unitários com Vitest para validações e funções utilitárias;
-- testes de integração para o fluxo principal de pesquisa e transformação de resultados;
-- testes manuais guiados pelos critérios de aceitação do MVP.
+## Testes unitários planeados (semana 9)
 
-## 4. Critério mínimo de cobertura académica
+| Ficheiro | Função |
+|---|---|
+| i18n.test.ts | getTranslations PT e EN |
+| copernicus.test.ts | stacFeatureToResult com mock |
+| geocoding.test.ts | nominatimToGeocodingResult |
 
-O objectivo não é maximizar cobertura numérica de forma artificial, mas sim garantir que as funcionalidades centrais do MVP tenham evidência clara de validação.
+---
+
+## Critérios de aceitação do MVP — testes manuais (semanas 11–13)
+
+| # | Cenário | Critério | Estado |
+|---|---|---|---|
+| T01 | Abrir a aplicação | Carrega sem erros em localhost:3000 | Pendente |
+| T02 | Seleccionar lugar popular | Lugar registado, passo 2 desbloqueado | Pendente |
+| T03 | Desenhar região no mapa | Bounding box com coordenadas correctas | Pendente |
+| T04 | Pesquisa por topónimo | Sugestões aparecem; mapa navega | Pendente |
+| T05 | Datas inválidas | Mensagem clara, API não chamada | Pendente |
+| T06 | Pesquisa com resultados | Imagens na faixa, ordem cronológica | Pendente |
+| T07 | Pesquisa sem resultados | Mensagem sugere aumentar o filtro | Pendente |
+| T08 | Seleccionar imagem | Visualização principal actualiza | Pendente |
+| T09 | Alternar banda | TCI / NDVI / SWIR muda a imagem | Pendente |
+| T10 | Comparar duas datas | Painel Antes/Depois funcional | Pendente |
+| T11 | Toggle PT/EN | Interface muda sem recarregar | Pendente |
+| T12 | API indisponível | Mensagem amigável, nova tentativa | Pendente |
+
+---
+
+## Executar testes
+
+```bash
+npm test            # todos os testes
+npm run test:ui     # interface visual
+npm run test:coverage  # relatório de cobertura
+```
