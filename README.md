@@ -1,200 +1,122 @@
 # Explorador Temporal de Imagens de Satélite
 
-> Projecto de Engenharia Informática · Universidade Aberta · 2025/26
-
-**Estudante:** Krassimire Djimov · 2301201  
-**Orientador:** Pedro Pestana  
-**UC:** Projecto de Engenharia Informática · Universidade Aberta · 2025/26  
-**Repositório:** https://github.com/Djimov/Krassimire
-
----
-
-## Visão geral do projecto
-
-O projecto consiste no desenvolvimento de uma aplicação web para exploração temporal de imagens Sentinel-2, orientada para utilizadores não especialistas. O sistema permitirá seleccionar uma região geográfica num mapa interactivo, definir um intervalo temporal, consultar resultados organizados cronologicamente e comparar visualmente duas imagens de datas distintas.
-
-A motivação principal decorre da distância existente entre a disponibilidade de dados públicos de observação da Terra e a sua utilização por públicos generalistas. Embora existam plataformas e catálogos robustos, a maioria das ferramentas actualmente disponíveis continua orientada para utilizadores com conhecimentos técnicos em SIG, sensores remotos e processamento geoespacial. Este projecto procura, assim, transformar dados científicos públicos num fluxo de utilização simples, visual e academicamente demonstrável.
+**Projeto de Engenharia Informática 2025/26 · Universidade Aberta**
+Krassimire Iankov Djimov · 2301201
+Orientador: Pedro Pestana
 
 ---
 
 ## Estado actual
 
-🟡 **Amarelo** — a fase de planeamento técnico e documental encontra-se consolidada. A proposta inicial foi expandida para uma versão operacional 2.0/2.1, já com definição de MVP, levantamento de requisitos, arquitectura inicial, modelo de dados preliminar e organização do repositório. A implementação funcional do MVP encontra-se ainda em fase inicial.
+🟡 **Amarelo** — Fase de planeamento e prototipagem concluída. Implementação do núcleo em curso.
 
-### O que já está feito nesta fase
+**O que está feito:**
+- ✅ Proposta v2.1 com MVP, requisitos MoSCoW e calendário detalhado
+- ✅ Arquitectura C4 nível 1 e 2 documentada
+- ✅ Modelo de dados preliminar com 5 entidades TypeScript
+- ✅ ADRs das 4 decisões arquitecturais principais
+- ✅ Tipos TypeScript do domínio (src/types/index.ts)
+- ✅ Validadores de parâmetros com 19 testes unitários a passar (Vitest)
+- ✅ Sistema i18n PT/EN completo
+- ✅ Serviço de geocodificação Nominatim (src/services/geocoding.ts)
+- ✅ Serviço de integração Copernicus STAC + OAuth2 (src/services/copernicus.ts)
+- ✅ Rotas internas /api/search e /api/geocode
+- ✅ Componente MapSelector com Leaflet e pesquisa por topónimo
+- ✅ Componente ImageStrip para timeline cronológica
+- ✅ Componente ComparePanel para comparação temporal Antes/Depois
+- ✅ Protótipo interactivo completo da interface (4 passos guiados)
 
-- [x] Definição da sinopse do projecto e delimitação do problema
-- [x] Definição do MVP com critérios de aceitação observáveis
-- [x] Levantamento de requisitos funcionais e não funcionais
-- [x] Priorização de requisitos com técnica MoSCoW
-- [x] Arquitectura inicial documentada com C4 nível 1 e 2
-- [x] Modelo de dados preliminar do domínio
-- [x] Justificação da mudança de stack tecnológica
-- [x] Registo de decisões arquitecturais iniciais (ADRs)
-- [x] Estrutura académica do repositório alinhada com a guia da UC
-- [x] Plano de testes inicial
-- [x] Registo de riscos e changelog
-
-### O que continua pendente
-
-- [ ] Configuração funcional da aplicação Next.js
-- [ ] Implementação do mapa interactivo com Leaflet
-- [ ] Integração funcional com a STAC API do Copernicus
-- [ ] Implementação da pesquisa temporal e filtro por nuvens
-- [ ] Construção da timeline cronológica
-- [ ] Visualização de imagem em cor natural e falso infravermelho
-- [ ] Vista comparativa lado a lado
-- [ ] Testes ao fluxo principal do MVP
-- [ ] Produção dos diagramas finais em draw.io
-- [ ] Consolidação do relatório intercalar
-
----
-
-## Problema e objectivo
-
-O problema central do projecto é a dificuldade que um utilizador comum encontra quando tenta perceber como uma determinada região mudou ao longo do tempo através de imagens de satélite. O objectivo não é competir com plataformas profissionais de análise geoespacial, mas antes criar uma camada de simplificação sobre dados públicos, com foco na pesquisa temporal, visualização clara e comparação directa entre momentos distintos.
-
-O resultado esperado é um protótipo funcional e defendível que permita demonstrar o seguinte fluxo principal:
-
-1. seleccionar uma região no mapa;
-2. definir um intervalo temporal;
-3. aplicar um filtro de cobertura de nuvens;
-4. obter resultados Sentinel-2;
-5. navegar por esses resultados numa timeline;
-6. visualizar uma imagem em pelo menos duas composições;
-7. comparar duas imagens lado a lado.
-
----
-
-## Stack tecnológica adoptada
-
-| Camada | Tecnologia | Papel no projecto |
-|---|---|---|
-| Aplicação web | **Next.js + TypeScript** | Base da aplicação, integrando interface, páginas e rotas de API internas no mesmo projecto |
-| Mapa interactivo | **Leaflet** | Selecção e visualização da região geográfica |
-| Fonte de dados externa | **Copernicus Data Space Ecosystem** | Pesquisa de produtos Sentinel-2 e acesso a recursos de visualização |
-| Testes | **Vitest** | Testes unitários e de integração do núcleo funcional |
-| Gestão e rastreabilidade | **Git + GitHub** | Histórico de evolução, documentação e acompanhamento assíncrono |
-
-### Justificação da mudança de stack
-
-A proposta inicial considerava uma separação clássica entre frontend e backend, com React no cliente e Node.js + Express no servidor. Após análise mais cuidada do calendário, do escopo do MVP e do esforço realista para um projecto individual, optou-se por adoptar **Next.js + TypeScript** como base única da aplicação. Esta mudança reduz a complexidade estrutural, evita a manutenção de dois projectos separados e simplifica a integração entre interface e rotas de API internas.
-
-A decisão não representa uma redução da qualidade técnica do projecto. Pelo contrário, preserva fronteiras arquitecturais claras, melhora a produtividade e aumenta a probabilidade de concluir o MVP com robustez dentro do calendário académico disponível.
+**O que está pendente:**
+- 🔲 Implementação funcional do mapa com tiles reais
+- 🔲 Integração real com a API Copernicus (autenticação OAuth2)
+- 🔲 Pesquisa temporal funcional com resultados reais
+- 🔲 Visualização de imagens reais (TCI, NDVI, SWIR)
+- 🔲 Comparação temporal com imagens reais
+- 🔲 Testes de integração e testes manuais do MVP
+- 🔲 Diagramas C4 em PNG (draw.io) e wireframes em PDF
+- 🔲 Relatório intercalar e final
 
 ---
 
 ## Como instalar e correr
 
-### Pré-requisitos
-
-- Node.js 20+
-- npm 10+ (ou pnpm/yarn)
-- Conta no Copernicus Data Space Ecosystem
-- OAuth Client criado no dashboard do Copernicus Data Space Ecosystem
-
-### Instalação
+**Pré-requisitos:** Node.js 20+, npm 10+, conta no Copernicus Data Space Ecosystem
 
 ```bash
- git clone https://github.com/Djimov/Krassimire.git
- cd Krassimire
- npm install
- cp .env.example .env.local
-```
-
-### Variáveis de ambiente
-
-O ficheiro `.env.example` já contém os endpoints oficiais actuais do Copernicus. Para executar a integração real, é necessário preencher em `.env.local` os valores do `client_id` e `client_secret` do OAuth Client.
-
-### Arranque local
-
-```bash
+git clone https://github.com/Djimov/Krassimire.git
+cd Krassimire
+npm install
+cp .env.example .env.local
+# Editar .env.local com as credenciais do Copernicus
 npm run dev
+# Abrir http://localhost:3000
 ```
 
-A aplicação ficará disponível em `http://localhost:3000`.
+**Testes:**
+```bash
+npm test              # todos os testes unitários
+npm run test:ui       # interface visual Vitest
+npm run test:coverage # relatório de cobertura
+```
+
+---
+
+## Stack tecnológica
+
+| Camada | Tecnologia | Justificação |
+|---|---|---|
+| Aplicação web | Next.js 14 + TypeScript | Interface e API no mesmo projecto — reduz complexidade (ADR-001) |
+| Mapa interactivo | Leaflet + react-leaflet | Suficiente para o MVP; boa documentação |
+| Geocodificação | Nominatim (OpenStreetMap) | Gratuito, sem chave API, mediado por rota interna (ADR-002) |
+| Fonte de dados | Copernicus STAC API | Acesso nativo a imagens Sentinel-2 |
+| Testes | Vitest | Mais leve que Jest em ambiente TypeScript |
+| Controlo de versões | Git + GitHub | Commits semanais com Conventional Commits |
 
 ---
 
 ## Estrutura do repositório
 
-```text
+```
 docs/
-  scope/          proposta, requisitos, changelog, riscos
-  architecture/   C4, modelo de dados, ADRs
-  design/         wireframes e fluxos de utilização
-  tests/          plano e resultados de testes
-  report/         versões de trabalho do relatório
+  scope/        proposta, requisitos, changelog, riscos
+  architecture/ C4, modelo de dados, ADRs
+  design/       wireframes, fluxos de utilização
+  tests/        plano e resultados de testes
+  report/       relatório intercalar e final
 src/
-  app/            páginas e rotas Next.js
-  components/     componentes reutilizáveis
-  features/       funcionalidades por domínio
-  services/       integração com a API externa
-  lib/            utilitários e validações
-  types/          tipos TypeScript do domínio
-  tests/          testes unitários e de integração
+  app/          páginas e rotas Next.js
+  components/   componentes reutilizáveis (MapSelector)
+  features/     funcionalidades por domínio (timeline, compare)
+  services/     integração com APIs externas (Copernicus, Nominatim)
+  lib/          validadores, i18n, utilitários
+  types/        tipos TypeScript do domínio
+  tests/        testes unitários e de integração
 ```
 
 ---
 
-## Decisões de arquitectura principais
+## Decisões arquitecturais principais
 
-| Decisão | Alternativa considerada | Razão da escolha |
+| Decisão | Alternativa | Razão |
 |---|---|---|
-| **Next.js + TypeScript** | React + Node.js + Express em projectos separados | Reduz complexidade, centraliza aplicação e rotas de API e protege o MVP dentro do calendário disponível |
-| **Leaflet** | MapLibre GL JS | Biblioteca mais simples e suficiente para um MVP académico focado em selecção de região |
-| **STAC + Process API do Copernicus** | Apenas OData | A STAC API é mais natural para descoberta temporal e espacial; a Process API é adequada para pré-visualizações e renderizações úteis para o MVP |
-| **Sem base de dados persistente na fase inicial** | PostgreSQL desde o início | O problema principal nesta fase é descoberta e visualização de imagens, não persistência de utilizadores ou sessões |
-| **Vitest** | Jest | Configuração mais leve e moderna em ambiente TypeScript |
+| Next.js unificado | React + Express separados | Reduz complexidade para projecto individual (ADR-001) |
+| Leaflet | MapLibre GL JS | Suficiente para o MVP; mais simples |
+| STAC API Copernicus | OData | Mais natural para descoberta temporal e espacial |
+| Sem base de dados | PostgreSQL | Sem necessidade no MVP; estado em React state (ADR-003) |
+| Nominatim mediado | Chamada directa do cliente | Segurança: credenciais no servidor (ADR-002) |
+
+Ver todos os ADRs em docs/architecture/decisions/
 
 ---
 
-## Documentação principal
+## Utilização de IA generativa
 
-### Âmbito e planeamento
-- [`docs/scope/proposta.md`](docs/scope/proposta.md)
-- [`docs/scope/requirements.md`](docs/scope/requirements.md)
-- [`docs/scope/changelog.md`](docs/scope/changelog.md)
-- [`docs/scope/risks.md`](docs/scope/risks.md)
-
-### Arquitectura
-- [`docs/architecture/context.md`](docs/architecture/context.md)
-- [`docs/architecture/containers.md`](docs/architecture/containers.md)
-- [`docs/architecture/data-model.md`](docs/architecture/data-model.md)
-- [`docs/architecture/decisions/adr-001-stack.md`](docs/architecture/decisions/adr-001-stack.md)
-- [`docs/architecture/decisions/adr-002-copernicus-integration.md`](docs/architecture/decisions/adr-002-copernicus-integration.md)
-
-### Desenho e testes
-- [`docs/design/wireframes.md`](docs/design/wireframes.md)
-- [`docs/design/user-flows.md`](docs/design/user-flows.md)
-- [`docs/tests/test-plan.md`](docs/tests/test-plan.md)
-- [`docs/tests/test-results.md`](docs/tests/test-results.md)
+O Claude (Anthropic) foi utilizado como ferramenta de apoio ao desenvolvimento:
+geração de código boilerplate, revisão de código, documentação técnica e prototipagem
+de interface. Todas as decisões de arquitectura, requisitos e stack foram tomadas
+pelo estudante. Ver docs/scope/proposta.md secção 7 para detalhes.
 
 ---
 
-## Ferramentas de IA utilizadas
-
-| Ferramenta | Utilização principal |
-|---|---|
-| ChatGPT | Apoio à clarificação do problema, definição do MVP, análise comparativa da stack, estruturação do repositório e redacção inicial da documentação |
-| ProjAlde | Apoio exploratório complementar na organização de ideias e tópicos iniciais do projecto |
-
-> A utilização de IA teve natureza instrumental e de apoio. A definição do problema, a selecção final da stack, a adaptação ao contexto da UC e a validação dos conteúdos foram efectuadas manualmente pelo estudante.
-
----
-
-## Referências técnicas principais
-
-- Copernicus Data Space Ecosystem Documentation
-- STAC Product Catalogue / STAC API Documentation
-- Sentinel Hub Process API Documentation
-- Next.js Documentation
-- Leaflet Documentation
-- Vitest Documentation
-
----
-
-## Última actualização
-
-**Última actualização:** 13/04/2026 · Sem. 5  
-**Próximo marco:** consolidação do repositório no GitHub e início da implementação do mapa interactivo e da pesquisa temporal.
+*Última actualização: 18 Abril 2026 · Semana 6*
+*Próximo marco: Demo interna ao orientador (semana 7, 28 Abr–2 Mai)*
