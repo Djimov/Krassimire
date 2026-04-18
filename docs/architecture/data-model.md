@@ -1,175 +1,79 @@
 # Modelo de dados preliminar
 
-## 1. Objectivo
-
-Embora o projecto não dependa, numa fase inicial, de uma base de dados relacional persistente, é essencial definir um modelo de dados preliminar para estruturar o domínio. Este modelo serve para orientar a implementação em TypeScript, clarificar o significado dos dados manipulados pela aplicação e apoiar o desenho de testes e documentação.
-
----
-
-## 2. Entidades principais do domínio
-
-## 2.1 Região de Interesse
-
-Representa a área geográfica seleccionada pelo utilizador no mapa e usada como base espacial para a pesquisa.
-
-### Atributos principais
-
-- `minLat`
-- `minLng`
-- `maxLat`
-- `maxLng`
-- `createdAt` (opcional, se se optar por guardar estado de sessão)
-
-### Observações
-
-A região de interesse é conceptualmente simples, mas central. Ela funciona como a âncora espacial de toda a pesquisa.
+Explorador Temporal de Imagens de Satélite
+Krassimire Iankov Djimov · 2301201 · Universidade Aberta
+Última actualização: 2026-04-18
 
 ---
 
-## 2.2 Parâmetros de Pesquisa
+## Nota de persistência (ADR-003)
 
-Representam o conjunto de inputs definidos pelo utilizador para procurar produtos satélite.
-
-### Atributos principais
-
-- `region`
-- `startDate`
-- `endDate`
-- `maxCloudCoverage`
-- `selectedBandMode` (opcional)
-
-### Observações
-
-Os parâmetros de pesquisa constituem uma entidade lógica importante porque:
-
-- podem ser validados de forma independente;
-- são enviados às rotas de API internas;
-- podem ser usados em testes e rastreabilidade de cenários.
+O sistema não usa base de dados persistente. Todas as entidades vivem em
+memória de sessão (React state). Os dados de imagem são sempre derivados
+da API Copernicus em tempo real.
 
 ---
 
-## 2.3 Resultado de Imagem Satélite
+## Entidades do domínio
 
-Representa cada item devolvido pela pesquisa de produtos Sentinel-2.
+### Region — bounding box seleccionada no mapa
+| Campo | Tipo | Descrição |
+|---|---|---|
+| minLat, maxLat | number | Latitudes sul/norte |
+| minLng, maxLng | number | Longitudes oeste/leste |
+| createdAt | string ISO | Timestamp |
 
-### Atributos principais
+### SearchParams — parâmetros de um pedido ao Copernicus
+| Campo | Tipo | Descrição |
+|---|---|---|
+| region | Region | Área de pesquisa |
+| startDate, endDate | string ISO | Intervalo temporal |
+| maxCloudCoverage | number | Limite de nuvens (0–100) |
+| selectedBandMode | BandMode? | Banda opcional |
 
-- `imageId`
-- `acquisitionDate`
-- `cloudCoverage`
-- `thumbnailUrl` (opcional)
-- `previewUrl` (opcional)
-- `source`
-- `bandsAvailable`
-- `metadataRaw` (opcional)
+### SatelliteImageResult — resultado de pesquisa
+| Campo | Tipo | Descrição |
+|---|---|---|
+| imageId | string | ID no catálogo Copernicus |
+| acquisitionDate | string ISO | Data de aquisição |
+| cloudCoverage | number | % de nuvens |
+| thumbnailUrl, previewUrl | string? | URLs das imagens |
+| source | string | Sempre "Copernicus" |
+| bandsAvailable | BandMode[] | Composições disponíveis |
 
-### Observações
+### ImageViewState — estado da visualização activa
+| Campo | Tipo | Descrição |
+|---|---|---|
+| imageId | string | Imagem em visualização |
+| bandMode | BandMode | Composição activa |
+| renderUrl | string? | URL de renderização |
+| isLoaded | boolean | Se terminou de carregar |
+| errorState | string? | Mensagem de erro |
 
-Esta entidade será apresentada na timeline e servirá de base quer para a visualização individual, quer para a comparação temporal.
+### ComparisonState — comparação temporal lado a lado
+| Campo | Tipo | Descrição |
+|---|---|---|
+| leftImageId, rightImageId | string | IDs de Antes e Depois |
+| leftBandMode, rightBandMode | BandMode | Bandas de cada lado |
+| comparisonMode | string? | "side-by-side" |
 
----
-
-## 2.4 Estado de Visualização da Imagem
-
-Representa a forma concreta como uma imagem está a ser apresentada na interface num dado momento.
-
-### Atributos principais
-
-- `imageId`
-- `bandMode`
-- `renderUrl`
-- `isLoaded`
-- `errorState` (opcional)
-
-### Observações
-
-Esta entidade não representa um produto satélite em si, mas sim o estado de apresentação desse produto no interface do utilizador.
-
----
-
-## 2.5 Estado de Comparação Temporal
-
-Representa a selecção de duas imagens para a vista comparativa.
-
-### Atributos principais
-
-- `leftImageId`
-- `rightImageId`
-- `leftBandMode`
-- `rightBandMode`
-- `comparisonMode`
-
-### Observações
-
-A comparação temporal é uma das funcionalidades distintivas do sistema. Esta entidade ajuda a separar claramente o estado de comparação do estado de pesquisa e do estado de visualização individual.
+### GeocodingResult — sugestão do Nominatim
+| Campo | Tipo | Descrição |
+|---|---|---|
+| name | string | Nome do lugar |
+| country | string | País |
+| lat, lng | number | Coordenadas do centro |
+| boundingBox | object? | Bounding box sugerida |
 
 ---
 
-## 3. Relações principais entre entidades
+## Relações
+- Region → SearchParams (1 para muitos na sessão)
+- SearchParams → SatelliteImageResult (1 para muitos)
+- SatelliteImageResult → ImageViewState (1 para 1 activa)
+- ComparisonState → SatelliteImageResult (1 para exactamente 2)
 
-- Uma **Região de Interesse** pode ser usada em vários **Parâmetros de Pesquisa**.
-- Um conjunto de **Parâmetros de Pesquisa** pode originar vários **Resultados de Imagem Satélite**.
-- Um **Resultado de Imagem Satélite** pode ser apresentado em um ou mais **Estados de Visualização**.
-- O **Estado de Comparação Temporal** referencia exactamente dois **Resultados de Imagem Satélite**.
+## Tipos TypeScript
+Ver src/types/index.ts
 
----
-
-## 4. Representação simplificada do domínio
-
-```ts
-export type Region = {
-  minLat: number
-  minLng: number
-  maxLat: number
-  maxLng: number
-}
-
-export type SearchParams = {
-  region: Region
-  startDate: string
-  endDate: string
-  maxCloudCoverage: number
-  selectedBandMode?: string
-}
-
-export type SatelliteImageResult = {
-  imageId: string
-  acquisitionDate: string
-  cloudCoverage: number
-  thumbnailUrl?: string
-  previewUrl?: string
-  source: string
-  bandsAvailable: string[]
-  metadataRaw?: unknown
-}
-
-export type ImageViewState = {
-  imageId: string
-  bandMode: string
-  renderUrl?: string
-  isLoaded: boolean
-  errorState?: string
-}
-
-export type ComparisonState = {
-  leftImageId: string
-  rightImageId: string
-  leftBandMode: string
-  rightBandMode: string
-  comparisonMode?: string
-}
-```
-
----
-
-## 5. Justificação do modelo de dados
-
-A definição deste modelo preliminar é útil mesmo sem base de dados persistente, porque:
-
-- clarifica o domínio do problema;
-- reduz ambiguidade na implementação;
-- facilita a tipagem em TypeScript;
-- organiza melhor os testes;
-- prepara o sistema para futuras extensões.
-
-Além disso, o modelo ajuda a demonstrar maturidade de planeamento, ligando directamente requisitos, arquitectura e implementação.
+*Diagrama visual: docs/architecture/data-model.png*
