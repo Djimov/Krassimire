@@ -1,77 +1,42 @@
-# Arquitectura — C4 nível 1 (Contexto)
+# Modelo C4 — Nível 1 (Contexto)
 
-## 1. Objectivo do diagrama de contexto
-
-O modelo C4 nível 1 descreve o sistema no seu contexto mais amplo, identificando os principais actores externos e os sistemas com os quais interage. No caso do **Explorador Temporal de Imagens de Satélite**, o objectivo deste nível é deixar claro quem usa o sistema, qual é a fronteira da solução desenvolvida e de que dependências externas o projecto necessita para funcionar.
-
----
-
-## 2. Sistema em foco
-
-O sistema em desenvolvimento é uma aplicação web para pesquisa, visualização e comparação temporal de imagens Sentinel-2. A sua responsabilidade principal é transformar dados públicos de observação da Terra num fluxo de utilização simples e visual, adequado a utilizadores não especialistas.
-
-O sistema não produz autonomamente dados satélite. O seu valor está na mediação entre o utilizador e os serviços externos de dados, oferecendo uma interface mais clara, orientada ao problema de exploração temporal de uma região geográfica.
+Explorador Temporal de Imagens de Satélite
+Krassimire Iankov Djimov · 2301201 · Universidade Aberta
 
 ---
 
-## 3. Actores e sistemas externos
+O diagrama C4 de nível 1 representa a fronteira do sistema e as suas relações
+com actores externos. O ficheiro visual c4-context.png será criado com draw.io
+antes do intercalar.
 
-### 3.1 Utilizador Final
+## Sistema principal
 
-O actor principal do sistema é o **Utilizador Final**, que acede à aplicação através de um navegador web. Este utilizador pretende:
+**Explorador Temporal de Imagens de Satélite** — aplicação web que permite
+pesquisar, visualizar e comparar imagens Sentinel-2 de qualquer região.
 
-- seleccionar uma região geográfica num mapa;
-- definir um intervalo temporal;
-- filtrar resultados por cobertura de nuvens;
-- visualizar resultados de pesquisa;
-- comparar duas imagens de datas diferentes.
+## Actor externo
 
-O utilizador não necessita de conhecimentos aprofundados de SIG ou de observação da Terra. A aplicação deverá, por isso, reduzir a complexidade técnica exposta.
+**Utilizador Final** — cidadão sem formação técnica em SIG. Acede via browser.
+Objectivo: perceber como uma região mudou ao longo do tempo.
 
-### 3.2 Copernicus Data Space Ecosystem
+## Sistemas externos
 
-O **Copernicus Data Space Ecosystem** é o sistema externo mais relevante. Fornece:
+| Sistema | Tipo | Papel |
+|---|---|---|
+| Copernicus Data Space Ecosystem | API externa | Metadados e recursos de imagem Sentinel-2 via STAC API + OAuth2 |
+| Nominatim / OpenStreetMap | API externa | Geocodificação — converte nomes de lugares em coordenadas |
+| GitHub | Sistema de suporte | Código, documentação, changelog e rastreabilidade |
 
-- mecanismos de autenticação;
-- catálogos e metadados de produtos Sentinel-2;
-- endpoints para descoberta de produtos;
-- serviços adequados para obtenção de recursos de visualização.
+## Fluxos
 
-Trata-se de uma dependência essencial, pois o projecto não mantém um catálogo satélite próprio.
+1. Utilizador → Sistema: define região, período, filtros; navega pelos resultados
+2. Sistema → Copernicus: pesquisa imagens via STAC API (autenticado com OAuth2)
+3. Sistema → Nominatim: converte topónimos em coordenadas (User-Agent obrigatório)
+4. Sistema → GitHub: commits, ADRs, changelog semanal
 
-### 3.3 GitHub
+## Nota de segurança (ADR-002)
 
-O **GitHub** não participa na execução da aplicação, mas é um sistema externo fundamental para o desenvolvimento. Serve como:
+Toda a comunicação com Copernicus e Nominatim é feita pelo servidor Next.js.
+O browser nunca chama serviços externos directamente.
 
-- repositório público do projecto;
-- base de documentação;
-- instrumento de rastreabilidade;
-- mecanismo de acompanhamento assíncrono do trabalho.
-
----
-
-## 4. Relações principais
-
-- O **Utilizador Final** interage com o **Explorador Temporal de Imagens de Satélite** através de um navegador.
-- O **Explorador Temporal de Imagens de Satélite** consulta o **Copernicus Data Space Ecosystem** para obter produtos e recursos associados a imagens Sentinel-2.
-- O desenvolvimento, a documentação e o histórico do **Explorador Temporal de Imagens de Satélite** são mantidos no **GitHub**.
-
----
-
-## 5. Interpretação arquitectural
-
-Este nível do modelo C4 mostra que o sistema tem uma fronteira claramente definida:
-
-- o utilizador interage apenas com a aplicação web;
-- o acesso a dados satélite é mediado por serviços externos especializados;
-- o desenvolvimento e a documentação existem fora do runtime da aplicação, mas são essenciais ao processo académico do projecto.
-
-A representação contextual é importante para a defesa técnica, porque ajuda a demonstrar que o valor do sistema não reside na geração dos dados, mas na forma como organiza, simplifica e apresenta esses dados de modo útil ao utilizador.
-
----
-
-## 6. Resumo textual do diagrama
-
-**Utilizador Final** → usa → **Explorador Temporal de Imagens de Satélite**  
-**Explorador Temporal de Imagens de Satélite** → consulta → **Copernicus Data Space Ecosystem**  
-**Projecto/Documentação** → mantido em → **GitHub**
+*Diagrama visual: docs/architecture/c4-context.png*
