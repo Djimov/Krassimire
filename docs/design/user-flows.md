@@ -107,3 +107,18 @@ Para a defesa, o fluxo de demonstração mínimo a percorrer é:
 8. Abrir o painel de comparação e seleccionar duas datas
 9. Mostrar a comparação lado a lado
 10. Demonstrar uma mensagem de erro (ex: região inválida ou sem resultados)
+
+
+---
+
+## Actualizações do fluxo (Semana 9)
+
+O fluxo principal foi alterado nos seguintes pontos:
+
+- **Passo 2 (Período)**: o utilizador agora selecciona datas exactas com calendário
+  (input type=date) em vez de pílulas de ano. Pode escolher qualquer dia desde
+  23 Jun 2015 até hoje. O sistema recomenda intervalos de no máximo 2 anos.
+- **Comparação**: cada coluna usa um date picker e o sistema selecciona automaticamente
+  a imagem com menor cobertura de nuvens mais próxima da data escolhida.
+- **Navegação**: adicionado botão "Nova pesquisa" e botões de edição em cada passo
+  para voltar atrás sem necessidade de recarregar a página.

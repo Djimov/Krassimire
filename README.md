@@ -8,32 +8,30 @@ Orientador: Pedro Pestana
 
 ## Estado actual
 
-🟡 **Amarelo** — Planeamento, desenho e núcleo estrutural concluídos. Credenciais Copernicus obtidas. Integração funcional e testes formais em curso.
+🟢 **Verde** — Integração funcional com o Copernicus concluída. A aplicação mostra imagens de satélite reais.
 
-**Feito (até semana 8):**
+**Feito (até semana 9):**
 - ✅ Proposta v2.1 com MVP, MoSCoW e calendário detalhado
 - ✅ Arquitectura C4 nível 1 e 2 em PNG (draw.io)
 - ✅ Modelo de dados em PNG (draw.io)
 - ✅ 4 ADRs com contexto/decisão/consequências
-- ✅ Tipos TypeScript do domínio (`src/types/index.ts`)
-- ✅ Validadores com 19 casos de teste escritos em Vitest (execução formal pendente — semana 11)
-- ✅ Sistema i18n PT/EN completo
-- ✅ Serviço Copernicus STAC + OAuth2 (credenciais locais em `.env.local`)
-- ✅ Serviço Nominatim para geocodificação por topónimo
-- ✅ Rotas internas `/api/search`, `/api/geocode` e `/api/preview` (stub)
-- ✅ Componentes MapSelector, ImageStrip e ComparePanel (com dados mock)
-- ✅ Página principal com fluxo guiado em 4 passos
-- ✅ Wireframes em PDF (`docs/design/wireframes.pdf`)
-- ✅ Relatório intercalar submetido
+- ✅ Tipos TypeScript do domínio (src/types/index.ts)
+- ✅ Validadores (src/lib/validators.ts) com 19 casos de teste escritos
+- ✅ Sistema i18n PT/EN completo (src/lib/i18n.ts)
+- ✅ Integração funcional com Copernicus SentinelHub (Process API + Catalog API)
+- ✅ Proxy autenticado /api/preview com evalscripts para TCI, NDVI e SWIR
+- ✅ Pesquisa por topónimo funcional via Nominatim (/api/geocode)
+- ✅ Componentes MapSelector, ImageStrip e ComparePanel com dados reais
+- ✅ Página principal com fluxo guiado em 4 passos e date pickers
+- ✅ Comparação temporal Antes/Depois com selecção inteligente de imagens
+- ✅ Legenda de cores para NDVI (vegetação) e SWIR (humidade)
+- ✅ Botão "Nova pesquisa" e edição de passos anteriores sem refresh
 
 **Por fazer:**
-- 🔲 Integração funcional do mapa com tiles reais (semanas 9-10)
-- 🔲 Primeira chamada real à API Copernicus (semanas 9-10)
-- 🔲 Timeline com imagens reais (semanas 10-11)
-- 🔲 Comparação temporal com imagens reais (semana 11)
-- 🔲 Execução formal dos testes unitários + novos testes para serviços (semana 11)
-- 🔲 Testes de integração das rotas de API com mocks (semana 10-11)
-- 🔲 Testes manuais dos critérios de aceitação T01-T12 (semanas 12-13)
+- 🔲 Melhorar o MapSelector (drag/zoom mais intuitivo)
+- 🔲 Execução formal dos testes unitários (semana 11)
+- 🔲 Testes de integração com mocks (semana 11)
+- 🔲 Testes manuais dos critérios de aceitação T01-T12 (semana 12)
 - 🔲 Capítulos 4 (Testes) e 5 (Conclusões) do relatório final (semana 14)
 
 ---
@@ -50,16 +48,15 @@ npm run dev
 # Abrir http://localhost:3000
 ```
 
+**Nota sobre credenciais:** As credenciais OAuth2 do SentinelHub devem ser obtidas
+em https://shapps.dataspace.copernicus.eu/dashboard/#/account/settings e colocadas
+no ficheiro .env.local (nunca commitado ao repositório).
+
 **Testes:**
 ```bash
-npm test              # todos os testes unitários (Vitest)
-npm run test:ui       # interface visual do Vitest
+npm test              # testes unitários (Vitest)
 npm run test:coverage # relatório de cobertura
 ```
-
-Nota: à data da entrega intercalar, os testes existem no repositório mas ainda não
-foram executados como bateria formal com recolha de resultados. Ver
-`docs/tests/test-plan.md` e `docs/tests/test-results.md` para o plano e calendário.
 
 ---
 
@@ -68,56 +65,36 @@ foram executados como bateria formal com recolha de resultados. Ver
 | Camada | Tecnologia | Justificação |
 |---|---|---|
 | Aplicação web | Next.js 14 + TypeScript | Interface e API no mesmo projecto (ADR-001) |
-| Mapa interactivo | Leaflet + react-leaflet | Suficiente para MVP; boa documentação |
-| Geocodificação | Nominatim (OpenStreetMap) | Gratuito, mediado por `/api/geocode` (ADR-002) |
-| Fonte de dados | Copernicus SentinelHub (STAC + WMS) | Acesso nativo a Sentinel-2 com OAuth2 |
+| Mapa interactivo | Leaflet + react-leaflet | Suficiente para MVP |
+| Geocodificação | Nominatim (OpenStreetMap) | Gratuito, mediado por /api/geocode (ADR-002) |
+| Fonte de dados | Copernicus SentinelHub (Catalog API + Process API) | Imagens Sentinel-2 com OAuth2 |
 | Testes | Vitest | Mais leve que Jest em TypeScript |
-| Controlo de versões | Git + GitHub | Conventional Commits desde a semana 1 |
+| Controlo de versões | Git + GitHub | Conventional Commits |
 
----
+## Arquitectura de integração com o Copernicus
 
-## Estrutura do repositório
+A comunicação com o Copernicus usa três serviços distintos:
 
-```
-docs/
-  scope/        proposta, requisitos, changelog semanal, riscos
-  architecture/ diagramas C4 PNG, modelo de dados PNG, ADRs, descrições
-  design/       wireframes (md + pdf), user-flows
-  tests/        plano e resultados de testes
-  report/       estrutura do relatório intercalar e final
-src/
-  app/          páginas Next.js e rotas de API internas
-  components/   MapSelector (Leaflet + topónimo)
-  features/     ImageStrip (timeline), ComparePanel (comparação)
-  services/     copernicus.ts (STAC + OAuth2), geocoding.ts (Nominatim)
-  lib/          validators.ts, i18n.ts
-  types/        tipos TypeScript do domínio (index.ts)
-  tests/        validators.test.ts (19 casos escritos)
-```
+1. **Catalog API** (sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0) — descoberta de
+   imagens Sentinel-2 L2A via protocolo STAC. Usado pela rota /api/search.
+2. **Process API** (sh.dataspace.copernicus.eu/api/v1/process) — renderização de imagens
+   com evalscripts customizados para cada composição de bandas (TCI, NDVI, SWIR).
+   Usado pela rota /api/preview como proxy autenticado.
+3. **Identity API** (identity.dataspace.copernicus.eu) — autenticação OAuth2 com
+   client credentials. O token é obtido pelo servidor a cada pedido.
 
----
-
-## Decisões arquitecturais principais
-
-| Decisão | Alternativa descartada | Razão |
-|---|---|---|
-| Next.js unificado | React + Express separados | Reduzir complexidade (ADR-001) |
-| `/api/*` como proxy | Chamadas directas do cliente | Segurança: credenciais no servidor (ADR-002) |
-| Sem base de dados | PostgreSQL / MongoDB | Não necessário no MVP (ADR-003) |
-| C4 + ADRs + comentários PT | Apenas README | Defensável em júri externo (ADR-004) |
-
-Todos os ADRs em `docs/architecture/decisions/`.
+O browser nunca contacta directamente estes serviços — toda a comunicação é mediada
+pelas rotas internas /api/* (ADR-002).
 
 ---
 
 ## Utilização de IA generativa
 
 O Claude (Anthropic) foi usado como ferramenta de apoio ao longo do projecto: geração
-de código boilerplate, revisão de código, documentação técnica, prototipagem de
-interface e apoio à redacção do relatório. Todas as decisões de arquitectura, âmbito,
-requisitos e stack foram tomadas pelo estudante. Ver `docs/scope/proposta.md` secção 7.
+de código, revisão, documentação, prototipagem e apoio na integração com o Copernicus.
+Todas as decisões de arquitectura, âmbito e requisitos foram tomadas pelo estudante.
+Ver docs/scope/proposta.md secção 7.
 
 ---
 
-*Última actualização: 20 Abril 2026 · Semana 8*
-*Próximo marco: Relatório intercalar (6 Maio)*
+*Última actualização: 19 Maio 2026 · Semana 9*

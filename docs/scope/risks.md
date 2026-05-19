@@ -16,3 +16,14 @@ Krassimire Iankov Djimov · 2301201 · Universidade Aberta
 | Aprendizagem de ferramentas novas (Leaflet, STAC, OAuth2) | Média | Médio | Semanas 5–6 para prototipagem; protótipo de interface já concluído | Parcialmente mitigado |
 | Decisões arquitecturais não defensáveis em júri | Baixa | Alto | ADRs com contexto/decisão/consequências; código comentado em PT; tudo documentado | Activo |
 | Exposição de credenciais Copernicus no repositório | Baixa | Alto | .gitignore inclui .env.local; .env.example sem valores reais | Mitigado |
+
+
+---
+
+## Riscos resolvidos na semana 9
+
+| Risco | Resolução | Data |
+|---|---|---|
+| WMS do SentinelHub requer instance ID | Substituído pelo Process API com evalscripts | 19 Mai 2026 |
+| Catálogo STAC genérico não tem Sentinel-2 | Mudado para SentinelHub Catalog API | 19 Mai 2026 |
+| Imagens não carregam no browser (autenticação) | Implementado proxy /api/preview | 19 Mai 2026 |

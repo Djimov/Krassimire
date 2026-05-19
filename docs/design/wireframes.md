@@ -56,3 +56,25 @@ Título + subtítulo com nome e número do estudante. Toggle PT/EN no canto supe
 ## Estados de erro (RF13)
 
 Mensagens amigáveis em PT/EN para: sem resultados, API indisponível, região inválida.
+
+
+---
+
+## Actualizações da interface (Semana 9)
+
+As seguintes alterações foram feitas à interface em relação aos wireframes originais:
+
+- **Período temporal**: as pílulas de ano foram substituídas por dois date pickers
+  (calendário) que permitem seleccionar qualquer dia entre 23 Jun 2015 e hoje.
+- **Comparação temporal**: em vez de dropdown, cada coluna (Antes/Depois) tem um
+  date picker. O sistema encontra automaticamente a imagem mais próxima da data
+  escolhida com menor cobertura de nuvens.
+- **Legenda de cores**: adicionada legenda visual para NDVI (vegetação) e SWIR
+  (humidade) que aparece quando essas bandas estão seleccionadas.
+- **Nova pesquisa**: adicionado botão para recomeçar a pesquisa e botões de edição
+  (ícone lápis) em cada passo concluído para voltar atrás sem refresh da página.
+- **Nota informativa**: adicionada nota "O Sentinel-2 é óptico — só captura de dia"
+  no passo 3 (cobertura de nuvens).
+
+Estas alterações reflectem o feedback obtido durante os testes de usabilidade
+informais da semana 9.

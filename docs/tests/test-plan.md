@@ -6,7 +6,7 @@ Krassimire Iankov Djimov · 2301201 · Universidade Aberta
 
 ---
 
-## Estado actual (semana 8)
+## Estado actual (semana 9)
 
 A fase de testes formais do projecto ainda não foi iniciada. Este documento descreve
 a estratégia planeada e os testes a realizar nas semanas 9 a 13 do semestre.
