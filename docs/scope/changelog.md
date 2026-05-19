@@ -81,4 +81,19 @@ Integração do Leaflet com tiles reais. Primeira chamada real à API Copernicus
 
 ---
 
-*Entradas das semanas 10–16 serão adicionadas conforme o trabalho avança.*
+---
+
+## Semana 9 · 19 Mai 2026
+
+**Feito:**
+Sessao intensiva de integracao funcional com a API do Copernicus. Correccao do endpoint STAC — o catalogo generico nao continha coleccoes Sentinel-2; mudei para o SentinelHub Catalog API (sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0) com a coleccao sentinel-2-l2a. Corrigi o formato do filtro de nuvens de CQL-text para CQL2-JSON. Implementei a rota /api/preview como proxy autenticado usando o Process API do SentinelHub com evalscripts para cada banda. Corrigi a rota /api/geocode que tinha o import errado. Corrigi a rota /api/search para decompor os parametros antes de chamar o servico. Aumentei o limite de intervalo temporal no validador de 730 para 3650 dias para permitir pesquisas de varios anos. Substitui os dropdowns de ano por date pickers com calendario no passo 2 e na comparacao. A comparacao agora encontra automaticamente a imagem mais proxima da data escolhida com menor cobertura de nuvens. Adicionei legenda de cores para NDVI e SWIR. Adicionei botao Nova pesquisa e botoes de edicao em cada passo. Aumentei a resolucao das imagens. As mensagens de erro reais da API sao agora visiveis para o utilizador.
+
+**Bloqueou:**
+O WMS do SentinelHub requer instance ID que nao temos — resolvi usando o Process API. O catalogo STAC generico nao tem Sentinel-2 — resolvi usando o SentinelHub Catalog. As imagens nao carregavam no browser por falta de token — resolvi com proxy /api/preview.
+
+**Planeado:**
+Melhorar o MapSelector. Testes unitarios formais. Preparacao do relatorio intercalar.
+
+---
+
+*Entradas das semanas 10-16 serao adicionadas conforme o trabalho avanca.*

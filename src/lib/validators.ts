@@ -44,7 +44,7 @@ export function validateDate(dateStr: string): ValidationResult {
 /**
  * Valida um intervalo temporal completo.
  * A data de início deve ser anterior à data de fim.
- * O intervalo não pode exceder 730 dias (2 anos).
+ * O intervalo não pode exceder 3650 dias (2 anos).
  */
 export function validateDateRange(startDate: string, endDate: string): ValidationResult {
   const startResult = validateDate(startDate)
@@ -58,7 +58,7 @@ export function validateDateRange(startDate: string, endDate: string): Validatio
   if (start >= end) {
     return { valid: false, error: 'A data de início deve ser anterior à data de fim.' }
   }
-  const MAX_DAYS = 730
+  const MAX_DAYS = 3650
   const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
   if (diffDays > MAX_DAYS) {
     return { valid: false, error: `O intervalo não pode exceder ${MAX_DAYS} dias. O intervalo actual é de ${diffDays} dias.` }

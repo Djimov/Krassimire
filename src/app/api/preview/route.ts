@@ -1,64 +1,141 @@
 /**
- * Rota interna de pré-visualização de imagem: POST /api/preview
+ * Rota interna de proxy de imagens: GET /api/preview
  * Explorador Temporal de Imagens de Satélite
  *
  * Autor: Krassimire Iankov Djimov — 2301201
  * Universidade Aberta — Projeto de Engenharia Informática 2025/26
  *
- * ESTADO: Stub — funcionalidade planeada para as semanas 9-11
- *
- * PROPÓSITO PREVISTO:
- * Esta rota irá receber um imageId e uma BandMode e devolver o URL
- * de pré-visualização da imagem Sentinel-2 via o serviço OGC WMS
- * do Copernicus (ADR-002 — toda a comunicação com sistemas externos
- * é mediada por rotas internas, nunca feita directamente do cliente).
+ * PROPÓSITO:
+ * Serve como proxy autenticado para imagens Sentinel-2 do SentinelHub.
+ * Usa o Process API (não o WMS) porque não requer instance ID.
  *
  * RASTREABILIDADE:
- * - RF9: apresentar imagem correspondente ao resultado seleccionado
- * - RF10: pelo menos duas composições de bandas (TCI, NDVI, SWIR)
- * - ADR-002: isolamento da comunicação com o Copernicus no servidor
- *
- * IMPLEMENTAÇÃO PREVISTA:
- * 1. Receber { imageId, bandMode, region } no corpo do pedido
- * 2. Validar os parâmetros
- * 3. Chamar buildImageUrl() de src/services/copernicus.ts
- * 4. Devolver o URL de renderização OGC WMS
- *
- * NOTA PARA O INTERCALAR:
- * Esta rota está declarada como stub para demonstrar que a arquitectura
- * de mediação (ADR-002) foi pensada desde o início. A implementação
- * funcional será completada nas semanas 9–11 conforme o calendário.
+ * - RF9: visualizar imagem seleccionada
+ * - RF10: composições de bandas (evalscript)
+ * - ADR-002: comunicação com o Copernicus mediada por rotas internas
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 
-/**
- * Handler POST — devolve stub informativo enquanto a implementação
- * funcional não está completa.
- *
- * @param request - Pedido HTTP com { imageId, bandMode, region }
- * @returns JSON com mensagem de estado ou URL de pré-visualização (futuro)
- */
-export async function POST(request: NextRequest) {
-  // Ler os parâmetros do pedido para validação futura
-  let body
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: 'Corpo do pedido inválido. Esperado JSON com imageId e bandMode.' },
-      { status: 400 }
-    )
+const PROCESS_URL = 'https://sh.dataspace.copernicus.eu/api/v1/process'
+
+const TOKEN_URL =
+  process.env.COPERNICUS_TOKEN_URL ??
+  'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'
+
+// Evalscripts para cada composição de bandas
+const EVALSCRIPTS: Record<string, string> = {
+  'TRUE-COLOR-S2L2A': `//VERSION=3
+function setup() {
+  return { input: ["B04", "B03", "B02"], output: { bands: 3 } };
+}
+function evaluatePixel(s) {
+  return [2.5 * s.B04, 2.5 * s.B03, 2.5 * s.B02];
+}`,
+  'NDVI': `//VERSION=3
+function setup() {
+  return { input: ["B04", "B08"], output: { bands: 3 } };
+}
+function evaluatePixel(s) {
+  let ndvi = (s.B08 - s.B04) / (s.B08 + s.B04);
+  if (ndvi < 0) return [0.8, 0.2, 0.2];
+  if (ndvi < 0.2) return [0.9, 0.8, 0.4];
+  if (ndvi < 0.4) return [0.7, 0.9, 0.3];
+  if (ndvi < 0.6) return [0.3, 0.8, 0.2];
+  return [0.1, 0.5, 0.1];
+}`,
+  'SWIR': `//VERSION=3
+function setup() {
+  return { input: ["B12", "B8A", "B04"], output: { bands: 3 } };
+}
+function evaluatePixel(s) {
+  return [2.5 * s.B12, 2.5 * s.B8A, 2.5 * s.B04];
+}`,
+}
+
+async function getToken(): Promise<string> {
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: process.env.COPERNICUS_CLIENT_ID!,
+      client_secret: process.env.COPERNICUS_CLIENT_SECRET!,
+    }),
+  })
+  const data = await res.json()
+  return data.access_token
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const bboxStr = searchParams.get('bbox') || '-9.25,38.65,-9.05,38.80'
+  const datetime = searchParams.get('datetime') || '2024-01-01'
+  const layer = searchParams.get('layer') || 'TRUE-COLOR-S2L2A'
+  const width = parseInt(searchParams.get('width') || '256')
+  const height = parseInt(searchParams.get('height') || '256')
+
+  const bbox = bboxStr.split(',').map(Number)
+  if (bbox.length !== 4 || bbox.some(isNaN)) {
+    return NextResponse.json({ error: 'BBOX inválido' }, { status: 400 })
   }
 
-  // Stub: devolver resposta informativa enquanto a implementação está em curso
-  // TODO (semanas 9-11): substituir por chamada real a buildImageUrl() do copernicus.ts
-  return NextResponse.json(
-    {
-      ok: false,
-      message: 'Rota /api/preview em implementação (semanas 9–11). Ver ADR-002 e src/services/copernicus.ts buildImageUrl().',
-      received: { imageId: body?.imageId, bandMode: body?.bandMode },
-    },
-    { status: 501 }
-  )
+  const timeStr = datetime.split('T')[0]
+  const evalscript = EVALSCRIPTS[layer] || EVALSCRIPTS['TRUE-COLOR-S2L2A']
+
+  try {
+    const token = await getToken()
+
+    const body = {
+      input: {
+        bounds: {
+          bbox: bbox,
+          properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' },
+        },
+        data: [{
+          type: 'sentinel-2-l2a',
+          dataFilter: {
+            timeRange: {
+              from: `${timeStr}T00:00:00Z`,
+              to: `${timeStr}T23:59:59Z`,
+            },
+          },
+        }],
+      },
+      output: { width, height },
+      evalscript,
+    }
+
+    const imageRes = await fetch(PROCESS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'image/png',
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!imageRes.ok) {
+      const errText = await imageRes.text().catch(() => '')
+      console.error('[/api/preview] Process API error:', imageRes.status, errText.slice(0, 200))
+      return NextResponse.json(
+        { error: `Process API respondeu com ${imageRes.status}` },
+        { status: imageRes.status }
+      )
+    }
+
+    const imageBuffer = await imageRes.arrayBuffer()
+
+    return new NextResponse(imageBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=86400',
+      },
+    })
+  } catch (error) {
+    console.error('[/api/preview] Erro:', error)
+    return NextResponse.json({ error: 'Erro ao obter imagem' }, { status: 503 })
+  }
 }

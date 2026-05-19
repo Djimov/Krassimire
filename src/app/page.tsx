@@ -1,31 +1,8 @@
 /**
- * Página principal da aplicação — fluxo guiado em 4 passos
- * Explorador Temporal de Imagens de Satélite
- *
+ * Página principal — Explorador Temporal de Imagens de Satélite
  * Autor: Krassimire Iankov Djimov — 2301201
  * Universidade Aberta — Projeto de Engenharia Informática 2025/26
- *
- * ARQUITECTURA DESTA PÁGINA:
- * Esta página implementa o fluxo principal da aplicação em 4 passos sequenciais:
- *   1. Selecção do lugar (MapSelector — componente Leaflet + topónimo)
- *   2. Escolha do período temporal (pílulas de anos)
- *   3. Nível de cobertura de nuvens (3 opções em linguagem simples)
- *   4. Resultados, visualização e comparação temporal
- *
- * PADRÃO DE ESTADO:
- * O estado global da página é gerido com useState do React.
- * Não é usada nenhuma biblioteca de gestão de estado externa (ex: Redux, Zustand)
- * porque o âmbito do MVP não justifica essa complexidade (ADR-003).
- *
- * COMPONENTES EXTERNOS:
- * O MapSelector é importado com dynamic() e ssr:false porque o Leaflet
- * assume a existência do objecto window e não pode ser renderizado no servidor.
- * Os outros componentes (ImageStrip, ComparePanel) são importados normalmente.
- *
- * CHAMADAS À API:
- * A pesquisa de imagens chama /api/search (rota interna Next.js).
- * A geocodificação chama /api/geocode (rota interna Next.js).
- * Nenhum serviço externo é chamado directamente desta página (ADR-002).
+ * Fluxo guiado em 4 passos: Lugar → Período → Nuvens → Resultados
  */
 
 'use client'
@@ -34,403 +11,583 @@ import { useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import type { Region, SearchParams, SatelliteImageResult, BandMode, Locale } from '@/types'
 import { getTranslations } from '@/lib/i18n'
-import ImageStrip from '@/features/timeline/ImageStrip'
-import ComparePanel from '@/features/compare/ComparePanel'
 
-/*
- * Importação dinâmica do MapSelector com SSR desactivado.
- * O Leaflet usa window, document e navigator — objectos que não existem
- * no servidor Node.js durante o Server-Side Rendering do Next.js.
- * Com ssr: false, o componente só é carregado no browser do utilizador.
- */
-const MapSelector = dynamic(
-  () => import('@/components/map/MapSelector'),
-  {
-    ssr: false,
-    loading: () => (
-      <div style={{ height: '350px', background: '#f0f0f0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: '#888', fontSize: '13px' }}>A carregar o mapa...</span>
-      </div>
-    )
-  }
-)
+const MapSelector = dynamic(() => import('@/components/map/MapSelector'), { ssr: false })
 
-// =============================================================
-// TIPOS DE ESTADO DA PÁGINA
-// =============================================================
-
-/** Qual dos 4 passos está activo no fluxo guiado */
 type Step = 1 | 2 | 3 | 4
 
-/** Estado completo da página principal */
 interface PageState {
-  locale: Locale           // idioma activo: 'pt' ou 'en'
-  currentStep: Step        // passo activo no fluxo
-  region: Region | null    // bounding box seleccionada no mapa
-  placeName: string        // nome do lugar (para resumos e mensagens)
-  year: string | null      // período temporal (ex: '2023–2024')
-  maxCloud: number         // cobertura máxima de nuvens (0–100)
-  results: SatelliteImageResult[]  // imagens devolvidas pela API
-  activeIndex: number      // índice da imagem seleccionada na timeline
-  activeBand: BandMode     // composição de bandas activa
-  isSearching: boolean     // true enquanto a pesquisa está em curso
-  error: string | null     // mensagem de erro, se existir
+  locale: Locale
+  currentStep: Step
+  region: Region | null
+  placeName: string
+  startDate: string
+  endDate: string
+  maxCloud: number
+  results: SatelliteImageResult[]
+  activeIndex: number
+  activeBand: BandMode
+  isSearching: boolean
+  error: string | null
+  isComparing: boolean
+  compareLeftIndex: number
+  compareRightIndex: number
 }
 
-/** Estado inicial — aplicação recém aberta, nenhuma escolha feita */
+const today = new Date().toISOString().split('T')[0]
+
 const INITIAL_STATE: PageState = {
   locale: 'pt',
   currentStep: 1,
   region: null,
   placeName: '',
-  year: null,
-  maxCloud: 10,
+  startDate: '2022-01-01',
+  endDate: today,
+  maxCloud: 30,
   results: [],
   activeIndex: 0,
   activeBand: 'TCI',
   isSearching: false,
   error: null,
+  isComparing: false,
+  compareLeftIndex: 0,
+  compareRightIndex: 1,
 }
 
-// =============================================================
-// COMPONENTE PRINCIPAL
-// =============================================================
+const CLOUD_OPTIONS = [
+  { value: 10, label: 'Quase sem nuvens', labelEn: 'Almost no clouds', icon: '☀️', desc: '≤10%' },
+  { value: 30, label: 'Algumas nuvens OK', labelEn: 'Some clouds OK', icon: '⛅', desc: '≤30%' },
+  { value: 100, label: 'Mostrar tudo', labelEn: 'Show all', icon: '☁️', desc: '100%' },
+]
+
+const BANDS: { mode: BandMode; label: string; labelEn: string; icon: string }[] = [
+  { mode: 'TCI', label: 'Natural', labelEn: 'Natural', icon: '🌍' },
+  { mode: 'NDVI', label: 'Vegetação', labelEn: 'Vegetation', icon: '🌿' },
+  { mode: 'SWIR', label: 'Humidade', labelEn: 'Moisture', icon: '💧' },
+]
+
+const VERDE = '#4A9E7F'
+const VERDE_ESC = '#2B7A5B'
+
+const card: React.CSSProperties = {
+  background: '#fff', borderRadius: 16, padding: '20px 24px',
+  marginBottom: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid #f0efe8',
+}
+const cardCollapsed: React.CSSProperties = { ...card, opacity: 0.5, padding: '16px 24px' }
+const btnPrimary: React.CSSProperties = {
+  background: VERDE, color: '#fff', border: 'none', borderRadius: 12,
+  padding: '14px 0', width: '100%', fontSize: 15, fontWeight: 600,
+  cursor: 'pointer', fontFamily: 'inherit',
+}
+const pill: React.CSSProperties = {
+  padding: '8px 16px', borderRadius: 20,
+  borderWidth: 1, borderStyle: 'solid', borderColor: '#e0ddd5',
+  background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+  transition: 'all 0.15s',
+}
+const pillActive: React.CSSProperties = { ...pill, background: VERDE, color: '#fff', borderColor: VERDE }
 
 export default function HomePage() {
   const [state, setState] = useState<PageState>(INITIAL_STATE)
-
-  // Obtém as traduções para o idioma activo
+  const isPt = state.locale === 'pt'
   const t = getTranslations(state.locale)
 
-  // --- Handlers de navegação entre passos ---
-
-  /** Alterna entre Português e Inglês */
-  const setLocale = useCallback((locale: Locale) => {
-    setState(prev => ({ ...prev, locale }))
-  }, [])
-
-  /**
-   * Chamado pelo MapSelector quando o utilizador confirma a região.
-   * Guarda as coordenadas e o nome do lugar, e avança para o passo 2.
-   */
   const handleRegionConfirmed = useCallback((region: Region, placeName: string) => {
     setState(prev => ({ ...prev, region, placeName, currentStep: 2 }))
   }, [])
 
-  /**
-   * Chamado quando o utilizador selecciona um período temporal.
-   * Avança para o passo 3.
-   */
-  const handleYearSelected = useCallback((year: string) => {
-    setState(prev => ({ ...prev, year, currentStep: 3 }))
-  }, [])
-
-  /**
-   * Chamado quando o utilizador escolhe o nível de nuvens.
-   * Avança para o passo 4.
-   */
   const handleCloudSelected = useCallback((maxCloud: number) => {
     setState(prev => ({ ...prev, maxCloud, currentStep: 4 }))
   }, [])
 
-  /**
-   * Lança a pesquisa de imagens via rota interna /api/search.
-   *
-   * Constrói os SearchParams a partir do estado actual e envia
-   * um pedido POST. Nunca chama o Copernicus directamente (ADR-002).
-   */
+  const handleNewSearch = useCallback(() => {
+    setState(INITIAL_STATE)
+  }, [])
+
+  const layerName = state.activeBand === 'TCI' ? 'TRUE-COLOR-S2L2A'
+    : state.activeBand === 'NDVI' ? 'NDVI' : 'SWIR'
+
   const handleSearch = useCallback(async () => {
-    if (!state.region || !state.year) return
+    if (!state.region) return
 
-    // Converte o período "YYYY–YYYY" em datas de início e fim
-    const startYear = parseInt(state.year.split('–')[0])
-    const params: SearchParams = {
-      region: state.region,
-      startDate: `${startYear}-01-01`,
-      endDate: `${startYear + 1}-12-31`,
-      maxCloudCoverage: state.maxCloud,
-      selectedBandMode: state.activeBand,
-    }
-
-    // Activa o indicador de carregamento e limpa erros anteriores
     setState(prev => ({ ...prev, isSearching: true, error: null, results: [] }))
 
     try {
       const response = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          region: state.region,
+          startDate: state.startDate,
+          endDate: state.endDate,
+          maxCloudCoverage: state.maxCloud,
+          selectedBandMode: state.activeBand,
+        }),
       })
-
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error ?? t.errorApiUnavailable)
+        setState(prev => ({
+          ...prev, isSearching: false,
+          error: data?.details ? data.details.join('. ') : (data?.error || (isPt
+            ? 'Erro na pesquisa. Verifica os parâmetros e tenta novamente.'
+            : 'Search error. Check parameters and try again.')),
+        }))
+        return
       }
 
+      if (data.results.length === 0) {
+        setState(prev => ({
+          ...prev, isSearching: false,
+          error: isPt
+            ? 'Sem resultados. Tenta aumentar o filtro de nuvens ou alargar o período.'
+            : 'No results. Try increasing the cloud filter or widening the time range.',
+        }))
+      } else {
+        setState(prev => ({
+          ...prev, results: data.results, isSearching: false,
+          activeIndex: 0, isComparing: false,
+        }))
+      }
+    } catch (err: any) {
       setState(prev => ({
-        ...prev,
-        results: data.results,
-        activeIndex: 0,
-        isSearching: false,
-      }))
-    } catch (err) {
-      // Tratamento robusto de erros — RF13, RNF4
-      setState(prev => ({
-        ...prev,
-        isSearching: false,
-        error: err instanceof Error ? err.message : t.errorApiUnavailable,
+        ...prev, isSearching: false,
+        error: err.message || (isPt
+          ? 'Serviço temporariamente indisponível.'
+          : 'Service temporarily unavailable.'),
       }))
     }
-  }, [state.region, state.year, state.maxCloud, state.activeBand, t])
+  }, [state.region, state.startDate, state.endDate, state.maxCloud, state.activeBand, isPt])
 
-  // Períodos temporais disponíveis
-  const YEARS = ['2019–2020', '2020–2021', '2021–2022', '2022–2023', '2023–2024', '2024–2025']
-
-  // Opções de cobertura de nuvens com valores e chaves de tradução
-  const CLOUD_OPTIONS = [
-    { label: t.cloudOptionNone, value: 10  },
-    { label: t.cloudOptionSome, value: 30  },
-    { label: t.cloudOptionAll,  value: 100 },
-  ]
-
-  // =============================================================
-  // RENDERIZAÇÃO
-  // =============================================================
+  // Encontrar a imagem com menor cobertura de nuvens mais próxima de uma data
+  const findClosestImage = useCallback((targetDate: string): number => {
+    if (state.results.length === 0) return 0
+    const target = new Date(targetDate).getTime()
+    let bestIdx = 0
+    let bestDist = Infinity
+    state.results.forEach((r, i) => {
+      const dist = Math.abs(new Date(r.acquisitionDate).getTime() - target)
+      if (dist < bestDist || (dist === bestDist && r.cloudCoverage < state.results[bestIdx].cloudCoverage)) {
+        bestDist = dist
+        bestIdx = i
+      }
+    })
+    return bestIdx
+  }, [state.results])
 
   return (
-    <div className="app-container">
-
-      {/* --- Cabeçalho com toggle PT/EN --- */}
-      <header style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '1rem 1.25rem', background: '#fff', borderRadius: '12px',
-        border: '1px solid #e8e8e8', marginBottom: '12px',
-      }}>
-        <div>
-          <h1 style={{ fontSize: '15px', fontWeight: 500 }}>
-            Explorador <span style={{ color: '#1D9E75' }}>Temporal</span> · Sentinel-2
-          </h1>
-          <p style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
-            {t.appSubtitle}
-          </p>
+    <div style={{ background: '#fafaf8', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+      {/* Header */}
+      <div style={{ ...card, marginBottom: 0, borderRadius: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ cursor: 'pointer' }} onClick={handleNewSearch}>
+          <span style={{ fontSize: 18, fontWeight: 700 }}>
+            Explorador <span style={{ color: VERDE }}>Temporal</span> · Sentinel-2
+          </span>
+          <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>Krassimire Djimov · 2301201 · Universidade Aberta</div>
         </div>
-
-        {/* Toggle de internacionalização — sempre visível no cabeçalho */}
-        <div style={{ display: 'flex', border: '1px solid #e8e8e8', borderRadius: '99px', overflow: 'hidden' }}>
-          {(['pt', 'en'] as Locale[]).map(loc => (
-            <button
-              key={loc}
-              onClick={() => setLocale(loc)}
-              style={{
-                padding: '4px 12px', fontSize: '12px', fontWeight: 500,
-                border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-                background: state.locale === loc ? '#1D9E75' : 'transparent',
-                color: state.locale === loc ? '#fff' : '#888',
-              }}
-            >
-              {loc.toUpperCase()}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {state.results.length > 0 && (
+            <button onClick={handleNewSearch}
+              style={{ ...pill, fontSize: 11, marginRight: 8, color: '#999' }}>
+              ↺ {isPt ? 'Nova pesquisa' : 'New search'}
+            </button>
+          )}
+          {(['pt', 'en'] as Locale[]).map(l => (
+            <button key={l} onClick={() => setState(prev => ({ ...prev, locale: l }))}
+              style={{ ...(state.locale === l ? pillActive : pill), padding: '6px 14px', fontSize: 13, fontWeight: 600 }}>
+              {l.toUpperCase()}
             </button>
           ))}
         </div>
-      </header>
+      </div>
 
-      {/* --- Passo 1: Selecção do lugar --- */}
-      <StepShell number={1} title={t.step1Title}
-        hint={state.region ? state.placeName : t.step1Hint}
-        isDone={!!state.region} isLocked={false}
-        isOpen={state.currentStep === 1}
-        onToggle={() => setState(prev => ({ ...prev, currentStep: 1 }))}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '16px 16px' }}>
 
-        {/* MapSelector carregado dinamicamente com ssr:false */}
-        <MapSelector
-          onConfirm={handleRegionConfirmed}
-          locale={state.locale}
-        />
-      </StepShell>
-
-      {/* --- Passo 2: Período temporal --- */}
-      <StepShell number={2} title={t.step2Title}
-        hint={state.year ?? t.step2Hint}
-        isDone={!!state.year} isLocked={!state.region}
-        isOpen={state.currentStep === 2}
-        onToggle={() => state.region && setState(prev => ({ ...prev, currentStep: 2 }))}>
-
-        <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: '8px' }}>
-          {YEARS.map(y => (
-            <button key={y} onClick={() => handleYearSelected(y)} style={{
-              padding: '6px 13px', borderRadius: '99px', fontSize: '12px', cursor: 'pointer',
-              border: '1px solid', transition: 'all 0.15s',
-              borderColor: state.year === y ? '#1D9E75' : '#e8e8e8',
-              background: state.year === y ? '#1D9E75' : '#fff',
-              color: state.year === y ? '#fff' : '#888',
-            }}>
-              {y}
-            </button>
-          ))}
+        {/* ═══ PASSO 1: LUGAR ═══ */}
+        <div style={state.currentStep >= 1 ? card : cardCollapsed}>
+          <StepHeader num={1} title={isPt ? 'Escolhe um lugar na Terra' : 'Choose a place on Earth'}
+            subtitle={state.currentStep > 1 ? state.placeName : (isPt ? 'Seleciona um lugar popular ou pesquisa pelo nome' : 'Select a popular place or search by name')}
+            active={state.currentStep === 1} done={state.currentStep > 1}
+            onEdit={state.currentStep > 1 ? () => setState(prev => ({ ...prev, currentStep: 1, results: [], error: null })) : undefined} />
+          {state.currentStep === 1 && (
+            <div style={{ marginTop: 12 }}>
+              <MapSelector locale={state.locale} onConfirm={handleRegionConfirmed} />
+            </div>
+          )}
         </div>
-        <p style={{ fontSize: '11px', color: '#888' }}>
-          {state.locale === 'pt' ? 'Dados disponíveis desde Junho de 2015.' : 'Data available from June 2015.'}
-        </p>
-      </StepShell>
 
-      {/* --- Passo 3: Cobertura de nuvens --- */}
-      <StepShell number={3} title={t.step3Title}
-        hint={t.step3Hint} isDone={state.currentStep > 3}
-        isLocked={!state.year} isOpen={state.currentStep === 3}
-        onToggle={() => state.year && setState(prev => ({ ...prev, currentStep: 3 }))}>
-
-        <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: '8px' }}>
-          {CLOUD_OPTIONS.map(opt => (
-            <button key={opt.value} onClick={() => handleCloudSelected(opt.value)} style={{
-              padding: '6px 13px', borderRadius: '99px', fontSize: '12px', cursor: 'pointer',
-              border: '1px solid', transition: 'all 0.15s',
-              borderColor: state.maxCloud === opt.value ? '#1D9E75' : '#e8e8e8',
-              background: state.maxCloud === opt.value ? '#1D9E75' : '#fff',
-              color: state.maxCloud === opt.value ? '#fff' : '#888',
-            }}>
-              {opt.label}
-            </button>
-          ))}
+        {/* ═══ PASSO 2: PERÍODO ═══ */}
+        <div style={state.currentStep >= 2 ? card : cardCollapsed}>
+          <StepHeader num={2} title={isPt ? 'Escolhe um período de tempo' : 'Choose a time period'}
+            subtitle={state.currentStep > 2 ? `${state.startDate} → ${state.endDate}` : (isPt ? 'Quando queres explorar?' : 'When do you want to explore?')}
+            active={state.currentStep === 2} done={state.currentStep > 2}
+            onEdit={state.currentStep > 2 ? () => setState(prev => ({ ...prev, currentStep: 2, results: [], error: null })) : undefined} />
+          {state.currentStep === 2 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div>
+                  <label style={{ fontSize: 12, color: '#777', display: 'block', marginBottom: 4 }}>{isPt ? 'De:' : 'From:'}</label>
+                  <input type="date" value={state.startDate} min="2015-06-23" max={state.endDate}
+                    onChange={e => setState(prev => ({ ...prev, startDate: e.target.value }))}
+                    style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #ddd', fontSize: 14, fontFamily: 'inherit' }} />
+                </div>
+                <div style={{ fontSize: 20, color: '#ccc', paddingTop: 20 }}>→</div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#777', display: 'block', marginBottom: 4 }}>{isPt ? 'Até:' : 'To:'}</label>
+                  <input type="date" value={state.endDate} min={state.startDate} max={today}
+                    onChange={e => setState(prev => ({ ...prev, endDate: e.target.value }))}
+                    style={{ padding: '10px 14px', borderRadius: 10, border: '1.5px solid #ddd', fontSize: 14, fontFamily: 'inherit' }} />
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>
+                ℹ️ {isPt ? 'Dados Sentinel-2 disponíveis desde 23 de Junho de 2015. Máximo recomendado: 2 anos por pesquisa.' : 'Sentinel-2 data available since June 23, 2015. Recommended max: 2 years per search.'}
+              </p>
+              <button onClick={() => setState(prev => ({ ...prev, currentStep: 3 }))}
+                style={{ ...btnPrimary, marginTop: 12, maxWidth: 300 }}>
+                {isPt ? 'Confirmar período' : 'Confirm period'} →
+              </button>
+            </div>
+          )}
         </div>
-      </StepShell>
 
-      {/* --- Passo 4: Resultados, visualização e comparação --- */}
-      <StepShell number={4} title={t.step4Title}
-        hint={t.step4Hint} isDone={false}
-        isLocked={state.currentStep < 4} isOpen={state.currentStep === 4}
-        onToggle={() => {}}>
+        {/* ═══ PASSO 3: NUVENS ═══ */}
+        <div style={state.currentStep >= 3 ? card : cardCollapsed}>
+          <StepHeader num={3} title={isPt ? 'Quão claras devem ser as imagens?' : 'How clear should the images be?'}
+            subtitle={state.currentStep > 3 ? `≤${state.maxCloud}% ${isPt ? 'nuvens' : 'clouds'}` : (isPt ? 'As nuvens podem bloquear a vista' : 'Clouds can block the view')}
+            active={state.currentStep === 3} done={state.currentStep > 3}
+            onEdit={state.currentStep > 3 ? () => setState(prev => ({ ...prev, currentStep: 3, results: [], error: null })) : undefined} />
+          {state.currentStep === 3 && (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {CLOUD_OPTIONS.map(opt => (
+                <button key={opt.value} onClick={() => handleCloudSelected(opt.value)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px',
+                    border: `1.5px solid ${state.maxCloud === opt.value ? VERDE : '#e8e6de'}`,
+                    borderRadius: 12, background: state.maxCloud === opt.value ? '#f0f9f5' : '#fff',
+                    cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                  <span style={{ fontSize: 26 }}>{opt.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: state.maxCloud === opt.value ? VERDE_ESC : '#333' }}>
+                      {isPt ? opt.label : opt.labelEn}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{opt.desc}</div>
+                  </div>
+                </button>
+              ))}
+              <p style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
+                ℹ️ {isPt
+                  ? 'O Sentinel-2 é óptico — só captura de dia com luz solar. Não existem imagens nocturnas.'
+                  : 'Sentinel-2 is optical — daytime only. No nighttime images exist.'}
+              </p>
+            </div>
+          )}
+        </div>
 
-        {/* Resumo das escolhas feitas nos passos anteriores */}
-        {state.region && (
-          <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: '12px' }}>
-            {[state.placeName, state.year, `≤${state.maxCloud}% nuvens`].filter(Boolean).map(label => (
-              <span key={label} style={{
-                fontSize: '11px', padding: '3px 10px', borderRadius: '99px',
-                background: '#f5f5f5', border: '1px solid #e8e8e8', color: '#888',
-              }}>{label}</span>
-            ))}
+        {/* ═══ PASSO 4: RESULTADOS ═══ */}
+        <div style={state.currentStep >= 4 ? card : cardCollapsed}>
+          <StepHeader num={4} title={isPt ? 'Explora as imagens' : 'Explore the images'}
+            subtitle={isPt ? 'Vê e compara as imagens de satélite' : 'View and compare satellite images'}
+            active={state.currentStep === 4} done={false} />
+          {state.currentStep === 4 && (
+            <div style={{ marginTop: 12 }}>
+              {/* Resumo */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                <span style={{ ...pill, fontSize: 12, cursor: 'default' }}>{state.placeName}</span>
+                <span style={{ ...pill, fontSize: 12, cursor: 'default' }}>{state.startDate} → {state.endDate}</span>
+                <span style={{ ...pill, fontSize: 12, cursor: 'default' }}>≤{state.maxCloud}% {isPt ? 'nuvens' : 'clouds'}</span>
+              </div>
+
+              <button onClick={handleSearch} disabled={state.isSearching}
+                style={{ ...btnPrimary, opacity: state.isSearching ? 0.6 : 1 }}>
+                {state.isSearching ? (isPt ? 'A pesquisar...' : 'Searching...') : (isPt ? 'Ver imagens de satélite' : 'View satellite images')}
+              </button>
+
+              {/* Erro */}
+              {state.error && (
+                <div style={{ marginTop: 12, padding: '14px 18px', background: '#fef3f0', borderRadius: 12, border: '1px solid #f5d0c5' }}>
+                  <p style={{ fontSize: 13, color: '#c0392b', margin: 0 }}>{state.error}</p>
+                </div>
+              )}
+
+              {/* === RESULTADOS — VISTA INDIVIDUAL === */}
+              {state.results.length > 0 && !state.isComparing && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 13, color: '#777', marginBottom: 8 }}>
+                    {isPt ? `${state.results.length} imagens encontradas. Desliza para ver todas.` : `${state.results.length} images found. Scroll to see all.`}
+                  </p>
+
+                  {/* Timeline */}
+                  <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {state.results.map((r, i) => {
+                        const src = r.thumbnailUrl ? r.thumbnailUrl.replace('layer=TRUE-COLOR-S2L2A', `layer=${layerName}`).replace('width=256', 'width=350').replace('height=256', 'height=350') : ''
+                        return (
+                          <div key={r.imageId + i} onClick={() => setState(prev => ({ ...prev, activeIndex: i }))}
+                            style={{ flexShrink: 0, width: 180, cursor: 'pointer', borderRadius: 10,
+                              border: `2px solid ${i === state.activeIndex ? VERDE : 'transparent'}`,
+                              overflow: 'hidden', background: '#1a2e1a', transition: 'all 0.15s' }}>
+                            {src && <img src={src} alt={r.acquisitionDate} style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }} loading="lazy" />}
+                            <div style={{ padding: '6px 8px' }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>
+                                {new Date(r.acquisitionDate).toLocaleDateString(isPt ? 'pt-PT' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </div>
+                              <div style={{ fontSize: 10, color: '#aaa' }}>{r.cloudCoverage.toFixed(1)}% {isPt ? 'nuvens' : 'clouds'}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Imagem principal GRANDE */}
+                  {state.results[state.activeIndex] && (() => {
+                    const active = state.results[state.activeIndex]
+                    const bigSrc = active.thumbnailUrl ? active.thumbnailUrl.replace('layer=TRUE-COLOR-S2L2A', `layer=${layerName}`).replace('width=256', 'width=1200').replace('height=256', 'height=900') : ''
+                    return (
+                      <div style={{ marginTop: 12, borderRadius: 12, overflow: 'hidden', background: '#111', position: 'relative' }}>
+                        {bigSrc && <img src={bigSrc} alt="Satellite" style={{ width: '100%', height: 'auto', minHeight: 400, display: 'block', objectFit: 'contain' }} />}
+                        <div style={{ position: 'absolute', top: 10, left: 12, padding: '6px 12px', background: 'rgba(0,0,0,0.6)', borderRadius: 8, color: '#fff', fontSize: 12 }}>
+                          {new Date(active.acquisitionDate).toLocaleDateString(isPt ? 'pt-PT' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          {' · '}{active.cloudCoverage.toFixed(1)}% {isPt ? 'nuvens' : 'clouds'}
+                          {' · '}{state.activeBand === 'TCI' ? (isPt ? 'Cor natural' : 'Natural') : state.activeBand}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Bandas */}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <span style={{ fontSize: 13, color: '#777', alignSelf: 'center' }}>{isPt ? 'Banda:' : 'Band:'}</span>
+                    {BANDS.map(b => (
+                      <button key={b.mode} onClick={() => setState(prev => ({ ...prev, activeBand: b.mode }))}
+                        style={{ ...(state.activeBand === b.mode ? pillActive : pill), fontSize: 13 }}>
+                        {b.icon} {isPt ? b.label : b.labelEn}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Legenda de cores para NDVI e SWIR */}
+                  <BandLegend band={state.activeBand} isPt={isPt} />
+
+                  {/* Acções */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
+                    <button onClick={handleNewSearch} style={{ ...pill, fontSize: 12, color: '#999' }}>
+                      ↺ {isPt ? 'Nova pesquisa' : 'New search'}
+                    </button>
+                    <button onClick={() => setState(prev => ({
+                      ...prev, isComparing: true,
+                      compareLeftIndex: 0,
+                      compareRightIndex: Math.min(prev.results.length - 1, Math.floor(prev.results.length / 2)),
+                    }))}
+                      style={{ ...pill, borderColor: VERDE, color: VERDE, fontWeight: 600, fontSize: 13 }}>
+                      🔀 {isPt ? 'Comparar duas datas' : 'Compare two dates'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* === RESULTADOS — MODO COMPARAÇÃO === */}
+              {state.results.length > 0 && state.isComparing && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    {/* ANTES */}
+                    <CompareColumn
+                      label={isPt ? 'ANTES' : 'BEFORE'}
+                      results={state.results}
+                      selectedIndex={state.compareLeftIndex}
+                      layerName={layerName}
+                      isPt={isPt}
+                      onSelectDate={(dateStr) => {
+                        const idx = findClosestImage(dateStr)
+                        setState(prev => ({ ...prev, compareLeftIndex: idx }))
+                      }}
+                    />
+                    {/* DEPOIS */}
+                    <CompareColumn
+                      label={isPt ? 'DEPOIS' : 'AFTER'}
+                      results={state.results}
+                      selectedIndex={state.compareRightIndex}
+                      layerName={layerName}
+                      isPt={isPt}
+                      onSelectDate={(dateStr) => {
+                        const idx = findClosestImage(dateStr)
+                        setState(prev => ({ ...prev, compareRightIndex: idx }))
+                      }}
+                    />
+                  </div>
+
+                  {/* Bandas na comparação */}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center' }}>
+                    {BANDS.map(b => (
+                      <button key={b.mode} onClick={() => setState(prev => ({ ...prev, activeBand: b.mode }))}
+                        style={{ ...(state.activeBand === b.mode ? pillActive : pill), fontSize: 12 }}>
+                        {b.icon} {isPt ? b.label : b.labelEn}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Legenda de cores para NDVI e SWIR */}
+                  <BandLegend band={state.activeBand} isPt={isPt} />
+
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 12 }}>
+                    <button onClick={() => setState(prev => ({ ...prev, isComparing: false }))}
+                      style={{ ...pill, fontSize: 12, color: '#777' }}>
+                      ← {isPt ? 'Voltar à vista individual' : 'Back to single view'}
+                    </button>
+                    <button onClick={handleNewSearch} style={{ ...pill, fontSize: 12, color: '#999' }}>
+                      ↺ {isPt ? 'Nova pesquisa' : 'New search'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// =============================================================
+// COMPONENTE: Legenda de cores para bandas NDVI e SWIR
+// =============================================================
+
+function BandLegend({ band, isPt }: { band: BandMode; isPt: boolean }) {
+  if (band === 'TCI') return null
+
+  const legends: Record<string, { colors: string[]; labels: string[]; labelsEn: string[]; title: string; titleEn: string }> = {
+    NDVI: {
+      title: 'Índice de Vegetação (NDVI)',
+      titleEn: 'Vegetation Index (NDVI)',
+      colors: ['#801A1A', '#E6CC66', '#B3E64D', '#4DCC33', '#1A801A'],
+      labels: ['Sem vegetação / solo nu / água', 'Vegetação escassa / seco', 'Vegetação moderada', 'Vegetação densa / saudável', 'Vegetação muito densa / floresta'],
+      labelsEn: ['No vegetation / bare soil / water', 'Sparse vegetation / dry', 'Moderate vegetation', 'Dense / healthy vegetation', 'Very dense vegetation / forest'],
+    },
+    SWIR: {
+      title: 'Infravermelho de Onda Curta (SWIR)',
+      titleEn: 'Short-Wave Infrared (SWIR)',
+      colors: ['#1A3366', '#3366CC', '#66CC66', '#CC9933', '#CC3333'],
+      labels: ['Água / zonas húmidas', 'Solo húmido', 'Vegetação com humidade', 'Solo seco / urbano', 'Solo muito seco / rocha'],
+      labelsEn: ['Water / wetlands', 'Moist soil', 'Vegetation with moisture', 'Dry soil / urban', 'Very dry soil / rock'],
+    },
+  }
+
+  const leg = legends[band]
+  if (!leg) return null
+
+  return (
+    <div style={{ marginTop: 12, padding: '14px 18px', background: '#f8f8f6', borderRadius: 12, border: '1px solid #eee' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10 }}>
+        🎨 {isPt ? leg.title : leg.titleEn}
+      </div>
+      {/* Barra de gradiente */}
+      <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
+        {leg.colors.map((c, i) => (
+          <div key={i} style={{ flex: 1, background: c }} />
+        ))}
+      </div>
+      {/* Labels */}
+      <div style={{ display: 'flex', gap: 4 }}>
+        {leg.colors.map((c, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: 12, height: 12, borderRadius: 3, background: c, border: '1px solid rgba(0,0,0,0.1)', marginBottom: 4 }} />
+            <span style={{ fontSize: 9, color: '#777', textAlign: 'center', lineHeight: 1.2 }}>
+              {isPt ? leg.labels[i] : leg.labelsEn[i]}
+            </span>
           </div>
-        )}
-
-        {/* Botão de pesquisa */}
-        <button
-          onClick={handleSearch}
-          disabled={state.isSearching || !state.region || !state.year}
-          style={{
-            width: '100%', padding: '11px', fontSize: '13px', fontWeight: 500,
-            background: state.isSearching ? '#9FE1CB' : '#1D9E75',
-            color: '#fff', border: 'none', borderRadius: '8px',
-            cursor: state.isSearching ? 'default' : 'pointer',
-            marginBottom: '12px', transition: 'background 0.15s',
-          }}
-        >
-          {state.isSearching ? (state.locale === 'pt' ? 'A pesquisar...' : 'Searching...') : t.searchButton}
-        </button>
-
-        {/* Mensagem de erro — RF13 */}
-        {state.error && (
-          <div style={{
-            fontSize: '12px', color: '#993C1D', background: '#FAECE7',
-            padding: '8px 12px', borderRadius: '8px', marginBottom: '12px',
-          }}>
-            {state.error}
-          </div>
-        )}
-
-        {/* Resultados — timeline e comparação */}
-        {state.results.length > 0 && (
-          <>
-            {/* Faixa de miniaturas e selector de bandas (RF7-RF10) */}
-            <ImageStrip
-              results={state.results}
-              activeIndex={state.activeIndex}
-              onSelect={i => setState(prev => ({ ...prev, activeIndex: i }))}
-              activeBand={state.activeBand}
-              onBandChange={band => setState(prev => ({ ...prev, activeBand: band }))}
-              locale={state.locale}
-            />
-
-            {/* Painel de comparação temporal (RF11-RF12) */}
-            <ComparePanel
-              results={state.results}
-              activeBand={state.activeBand}
-              locale={state.locale}
-            />
-          </>
-        )}
-
-        {/* Estado sem resultados — RF13 */}
-        {!state.isSearching && state.results.length === 0 && !state.error && state.currentStep === 4 && (
-          <p style={{ fontSize: '12px', color: '#888', textAlign: 'center', padding: '16px 0' }}>
-            {state.locale === 'pt'
-              ? 'Clica "Ver imagens de satélite" para pesquisar.'
-              : 'Click "Show satellite images" to search.'}
-          </p>
-        )}
-      </StepShell>
-
+        ))}
+      </div>
     </div>
   )
 }
 
 // =============================================================
-// COMPONENTE AUXILIAR: StepShell
-// Envolve cada passo do fluxo guiado com o cabeçalho numerado.
-// Passos bloqueados (isLocked) têm opacidade reduzida e não respondem a cliques.
+// COMPONENTE: Coluna de comparação com date picker
 // =============================================================
 
-interface StepShellProps {
-  number: number
-  title: string
-  hint: string
-  isDone: boolean
-  isLocked: boolean
-  isOpen: boolean
-  onToggle: () => void
-  children: React.ReactNode
-}
+function CompareColumn({ label, results, selectedIndex, layerName, isPt, onSelectDate }: {
+  label: string
+  results: SatelliteImageResult[]
+  selectedIndex: number
+  layerName: string
+  isPt: boolean
+  onSelectDate: (dateStr: string) => void
+}) {
+  const r = results[selectedIndex]
+  const src = r?.thumbnailUrl
+    ? r.thumbnailUrl.replace('layer=TRUE-COLOR-S2L2A', `layer=${layerName}`).replace('width=256', 'width=900').replace('height=256', 'height=700')
+    : ''
 
-function StepShell({ number, title, hint, isDone, isLocked, isOpen, onToggle, children }: StepShellProps) {
+  // Datas min/max: usar todo o intervalo Sentinel-2 para permitir escolha livre
+  const minDate = '2015-06-23'
+  const maxDate = new Date().toISOString().split('T')[0]
+  const selectedDate = r ? r.acquisitionDate.split('T')[0] : ''
+
   return (
-    <div style={{
-      border: '1px solid #e8e8e8', borderRadius: '12px',
-      background: '#fff', marginBottom: '10px', overflow: 'hidden',
-      // Passos bloqueados ficam visualmente inactivos
-      opacity: isLocked ? 0.45 : 1,
-      transition: 'opacity 0.2s',
-    }}>
-      {/* Cabeçalho do passo — clicável para expandir/recolher */}
-      <div
-        onClick={onToggle}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '14px',
-          padding: '14px 18px',
-          cursor: isLocked ? 'default' : 'pointer',
-        }}
-      >
-        {/* Círculo numerado: verde se aberto ou concluído, cinzento se bloqueado */}
-        <div style={{
-          width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
-          fontSize: '12px', fontWeight: 500,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: isDone || isOpen ? '#1D9E75' : '#E1F5EE',
-          color: isDone || isOpen ? '#fff' : '#085041',
-          outline: isOpen && !isDone ? '3px solid #9FE1CB' : 'none',
-        }}>
-          {isDone ? '✓' : number}
-        </div>
-        <div>
-          <div style={{ fontSize: '14px', fontWeight: 500 }}>{title}</div>
-          <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>{hint}</div>
-        </div>
+    <div style={{ flex: 1, minWidth: 300 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#4A9E7F', marginBottom: 8, textAlign: 'center', letterSpacing: '0.08em' }}>
+        {label}
       </div>
 
-      {/* Corpo do passo — visível apenas quando está aberto e não bloqueado */}
-      {isOpen && !isLocked && (
-        <div style={{ padding: '0 18px 18px' }}>
-          {children}
+      {/* Date picker */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+        <label style={{ fontSize: 12, color: '#777' }}>{isPt ? 'Data:' : 'Date:'}</label>
+        <input type="date"
+          value={selectedDate}
+          min={minDate}
+          max={maxDate}
+          onChange={e => onSelectDate(e.target.value)}
+          style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit' }}
+        />
+      </div>
+
+      {/* Info da imagem seleccionada */}
+      {r && (
+        <div style={{ fontSize: 11, color: '#777', marginBottom: 6, textAlign: 'center' }}>
+          {new Date(r.acquisitionDate).toLocaleDateString(isPt ? 'pt-PT' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+          {' · '}{r.cloudCoverage.toFixed(1)}% {isPt ? 'nuvens' : 'clouds'}
+          {' · '}{isPt ? 'imagem mais próxima com menos nuvens' : 'closest image with least clouds'}
         </div>
+      )}
+
+      {/* Imagem grande */}
+      {src && (
+        <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #eee' }}>
+          <img src={src} alt={label} style={{ width: '100%', display: 'block' }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =============================================================
+// COMPONENTE: Cabeçalho de passo (com botão editar)
+// =============================================================
+
+function StepHeader({ num, title, subtitle, active, done, onEdit }: {
+  num: number; title: string; subtitle: string; active: boolean; done: boolean; onEdit?: () => void
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        background: done ? '#4A9E7F' : active ? '#4A9E7F' : '#e8e6de',
+        color: done || active ? '#fff' : '#999',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 14, fontWeight: 700, flexShrink: 0,
+      }}>
+        {done ? '✓' : num}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: active ? '#222' : '#999' }}>{title}</div>
+        <div style={{ fontSize: 13, color: '#aaa', marginTop: 1 }}>{subtitle}</div>
+      </div>
+      {onEdit && (
+        <button onClick={onEdit}
+          style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#fff',
+            fontSize: 11, color: '#999', cursor: 'pointer', fontFamily: 'inherit' }}>
+          ✏️
+        </button>
       )}
     </div>
   )

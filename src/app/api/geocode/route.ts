@@ -6,20 +6,14 @@
  * Universidade Aberta — Projeto de Engenharia Informática 2025/26
  *
  * Implementa ADR-002: medeia a comunicação com o Nominatim.
- * O cliente nunca chama o Nominatim directamente.
- *
- * Uso: GET /api/geocode?q=Sintra
- * Resposta: { results: GeocodingResult[] }
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { geocodePlace } from '@/services/geocoding'
+import { searchByToponym } from '@/services/geocoding'
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get('q')
+  const query = request.nextUrl.searchParams.get('q')
 
-  // Validação do parâmetro — RF13: mensagens claras de erro
   if (!query || query.trim().length < 2) {
     return NextResponse.json(
       { error: 'O parâmetro "q" deve ter pelo menos 2 caracteres.' },
@@ -27,23 +21,13 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  if (query.length > 200) {
-    return NextResponse.json({ error: 'A pesquisa é demasiado longa.' }, { status: 400 })
-  }
-
   try {
-    const results = await geocodePlace(query.trim(), 5)
-    return NextResponse.json({ results }, {
-      status: 200,
-      headers: {
-        // Cache de 1 hora no browser para reduzir pedidos ao Nominatim
-        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-      },
-    })
+    const results = await searchByToponym(query.trim(), 5)
+    return NextResponse.json({ results })
   } catch (error) {
-    console.error('[/api/geocode] Erro ao chamar o Nominatim:', error)
+    console.error('[/api/geocode] Erro:', error)
     return NextResponse.json(
-      { error: 'Serviço de geocodificação temporariamente indisponível.', results: [] },
+      { error: 'Serviço de geocodificação indisponível.' },
       { status: 503 }
     )
   }
