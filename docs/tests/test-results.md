@@ -2,49 +2,84 @@
 
 Explorador Temporal de Imagens de Satélite
 Krassimire Iankov Djimov · 2301201 · Universidade Aberta
-Última actualização: 2026-04-20
+Última actualização: 2026-05-19 (semana 9)
 
 ---
 
-## Estado actual (semana 8)
+## Estado actual (semana 9)
 
-**Nenhuma bateria de testes formal foi ainda executada.**
+A integração funcional com o Copernicus está completa. Os testes podem agora
+ser executados com dados reais. Este documento será preenchido à medida que
+os testes forem executados nas semanas 10–13.
 
-Os testes estão escritos no ficheiro `src/tests/validators.test.ts` mas a execução
-sistemática com recolha de resultados está planeada para a semana 11, conforme o
-calendário definido em `docs/tests/test-plan.md`.
-
-Este documento será preenchido em duas fases:
-
-1. **Semana 11** — Resultados dos testes unitários e de integração (Vitest)
-2. **Semana 12-13** — Resultados dos testes manuais dos critérios de aceitação do MVP
+Os 19 casos de teste em validators.test.ts estão prontos a executar com `npm test`.
 
 ---
 
-## Estrutura prevista dos resultados
+## Resultados dos testes unitários
 
-### Testes unitários (semana 11)
+### validators.test.ts (a executar na semana 10)
 
-| Suite | Casos | Passaram | Falharam | Cobertura |
+| Suite | Casos | Passaram | Falharam | Notas |
 |---|---|---|---|---|
-| validateDate | 5 | — | — | — |
-| validateDateRange | 5 | — | — | — |
-| validateRegion | 6 | — | — | — |
-| validateSearchParams | 3 | — | — | — |
-| i18n | a escrever | — | — | — |
-| copernicus | a escrever | — | — | — |
-| geocoding | a escrever | — | — | — |
+| validateDate | 5 | — | — | |
+| validateDateRange | 5 | — | — | Limite alterado para 3650 dias |
+| validateRegion | 6 | — | — | |
+| validateSearchParams | 3 | — | — | |
 
-### Testes manuais do MVP (semana 12-13)
+### Novos testes (a escrever e executar na semana 10–11)
 
-| # | Cenário | Resultado | Observações |
-|---|---|---|---|
-| T01–T12 | Ver test-plan.md | Pendente | Execução após integração funcional completa |
+| Ficheiro | Casos | Passaram | Falharam | Notas |
+|---|---|---|---|---|
+| i18n.test.ts | — | — | — | |
+| copernicus.test.ts | — | — | — | |
+| geocoding.test.ts | — | — | — | |
+| api-search.test.ts | — | — | — | |
+| api-geocode.test.ts | — | — | — | |
+| api-preview.test.ts | — | — | — | |
 
 ---
 
-## Notas
+## Resultados dos testes manuais do MVP (a executar na semana 12)
 
-Esta documentação honesta do estado dos testes é deliberada. O guia da UC valoriza
-explicitamente a honestidade sobre o estado do trabalho ("limitações conhecidas e
-bem explicadas são mais valorizadas do que ausência de limitações não reconhecidas").
+| # | Cenário | Resultado | Data | Notas |
+|---|---|---|---|---|
+| T01 | Abrir a aplicação | — | — | |
+| T02 | Seleccionar lugar popular | — | — | |
+| T03 | Pesquisa por topónimo | — | — | |
+| T04 | Período com calendário | — | — | |
+| T05 | Nível de nuvens | — | — | |
+| T06 | Pesquisa com resultados | — | — | |
+| T07 | Pesquisa sem resultados | — | — | |
+| T08 | Seleccionar imagem | — | — | |
+| T09 | Banda NDVI + legenda | — | — | |
+| T10 | Banda SWIR + legenda | — | — | |
+| T11 | Comparar duas datas | — | — | |
+| T12 | Date picker na comparação | — | — | |
+| T13 | Toggle PT/EN | — | — | |
+| T14 | Nova pesquisa | — | — | |
+| T15 | Editar passo anterior | — | — | |
+
+---
+
+## Resultados dos testes de erro (a executar na semana 12)
+
+| # | Cenário | Resultado | Data | Notas |
+|---|---|---|---|---|
+| E01 | Rede cortada | — | — | |
+| E02 | Datas inválidas | — | — | |
+| E03 | Região pequena | — | — | |
+| E04 | Intervalo >10 anos | — | — | |
+| E05 | Credenciais inválidas | — | — | |
+
+---
+
+## Cobertura de código
+
+| Módulo | Cobertura | Objectivo |
+|---|---|---|
+| src/lib/ | — | ≥70% |
+| src/services/ | — | ≥60% |
+| Total | — | — |
+
+*Será preenchido após execução de `npm run test:coverage` na semana 11.*
