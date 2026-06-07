@@ -122,34 +122,55 @@ export async function searchSentinelImages(
   const token = await getAccessToken()
   const bbox = [region.minLng, region.minLat, region.maxLng, region.maxLat]
 
-  const requestBody: any = {
-    collections: ['sentinel-2-l2a'],
-    bbox,
-    datetime: `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
-    limit: 10,
+  // Dividir o período em chunks de 6 meses para cobrir todo o intervalo.
+  // A API SentinelHub devolve os mais recentes primeiro com limit,
+  // portanto sem dividir só veríamos os últimos meses do intervalo.
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const chunks: { from: string; to: string }[] = []
+  const cursor = new Date(start)
+  while (cursor < end) {
+    const chunkEnd = new Date(cursor)
+    chunkEnd.setMonth(chunkEnd.getMonth() + 6)
+    if (chunkEnd > end) chunkEnd.setTime(end.getTime())
+    chunks.push({
+      from: cursor.toISOString().split('T')[0],
+      to: chunkEnd.toISOString().split('T')[0],
+    })
+    cursor.setMonth(cursor.getMonth() + 6)
   }
 
-
-  const response = await fetch(`${STAC_URL}/search`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(requestBody),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'sem detalhes')
-    throw new Error(
-      `Copernicus respondeu com HTTP ${response.status}. Detalhes: ${errorText.slice(0, 200)}`
-    )
+  // Fazer um pedido por chunk com timeout independente
+  const allFeatures: any[] = []
+  for (const chunk of chunks) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000)
+      const response = await fetch(\`\${STAC_URL}/search\`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': \`Bearer \${token}\`,
+        },
+        body: JSON.stringify({
+          collections: ['sentinel-2-l2a'],
+          bbox,
+          datetime: \`\${chunk.from}T00:00:00Z/\${chunk.to}T23:59:59Z\`,
+          limit: 10,
+        }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      if (response.ok) {
+        const data = await response.json()
+        allFeatures.push(...(data.features || []))
+      }
+    } catch {
+      // Chunk timeout ou erro — continuar com os próximos
+    }
   }
 
-  const data = await response.json()
-  const features = data.features || []
-
-  return features
+  return allFeatures
     .map(stacFeatureToResult)
     .filter((r: SatelliteImageResult) => r.cloudCoverage <= maxCloudCoverage)
     .sort((a: SatelliteImageResult, b: SatelliteImageResult) =>
@@ -157,6 +178,7 @@ export async function searchSentinelImages(
     )
     .slice(0, 50)
 }
+
 
 // =============================================================
 // CONSTRUÇÃO DE URLs DE IMAGEM PÚBLICA
