@@ -85,7 +85,7 @@ export default function MapSelector({ onConfirm, locale }: MapSelectorProps) {
       map.on('mousemove', (e: L.LeafletMouseEvent) => {
         if (!startLatLng) return
         if (currentRect) map.removeLayer(currentRect)
-        currentRect = L.rectangle([startLatLng, e.latlng], { color: '#1D9E75', weight: 2, fillOpacity: 0.12 }).addTo(map)
+        currentRect = L.rectangle([startLatLng as L.LatLngTuple, e.latlng as L.LatLngTuple], { color: '#1D9E75', weight: 2, fillOpacity: 0.12 }).addTo(map)
       })
       map.on('mouseup', (e: L.LeafletMouseEvent) => {
         map.dragging.enable()
