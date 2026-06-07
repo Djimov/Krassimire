@@ -1,3 +1,5 @@
+export const maxDuration = 30
+
 /**
  * Rota interna de geocodificação: GET /api/geocode?q=...
  * Explorador Temporal de Imagens de Satélite

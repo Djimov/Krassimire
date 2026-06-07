@@ -1,3 +1,5 @@
+export const maxDuration = 60
+
 /**
  * Rota interna de pesquisa de imagens: POST /api/search
  * Explorador Temporal de Imagens de Satélite

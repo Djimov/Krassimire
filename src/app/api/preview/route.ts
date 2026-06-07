@@ -1,3 +1,5 @@
+export const maxDuration = 60
+
 /**
  * Rota interna de proxy de imagens: GET /api/preview
  * Explorador Temporal de Imagens de Satélite
