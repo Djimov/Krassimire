@@ -1,51 +1,24 @@
 /**
  * Serviço de integração com o Copernicus Data Space Ecosystem
  * Explorador Temporal de Imagens de Satélite
- *
  * Autor: Krassimire Iankov Djimov — 2301201
- * Universidade Aberta — Projeto de Engenharia Informática 2025/26
- *
- * ENDPOINT: SentinelHub Catalog API
- * https://sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0
- * Colecção: sentinel-2-l2a
- *
- * NOTA: Os thumbnailUrl e previewUrl são URLs locais (/api/preview)
- * que funcionam como proxy autenticado para o WMS do SentinelHub.
- * O browser não consegue carregar directamente do SentinelHub porque
- * o endpoint requer autenticação OAuth2 Bearer token.
  */
 
 import type { SatelliteImageResult, Region, BandMode } from '@/types'
-
-// =============================================================
-// CONFIGURAÇÃO
-// =============================================================
 
 const STAC_URL =
   process.env.COPERNICUS_STAC_URL ??
   'https://sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0'
 
-const OGC_URL =
-  process.env.COPERNICUS_OGC_URL ??
-  'https://sh.dataspace.copernicus.eu/ogc/wms'
-
 const TOKEN_URL =
   process.env.COPERNICUS_TOKEN_URL ??
   'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'
-
-// =============================================================
-// MAPEAMENTO DE BANDAS
-// =============================================================
 
 const BAND_TO_LAYER: Record<string, string> = {
   TCI: 'TRUE-COLOR-S2L2A',
   NDVI: 'NDVI',
   SWIR: 'SWIR',
 }
-
-// =============================================================
-// AUTENTICAÇÃO OAUTH2
-// =============================================================
 
 async function getAccessToken(): Promise<string> {
   const clientId = process.env.COPERNICUS_CLIENT_ID
@@ -70,7 +43,7 @@ async function getAccessToken(): Promise<string> {
 
   if (!response.ok) {
     throw new Error(
-      `Falha na autenticação com o Copernicus (HTTP ${response.status}). ` +
+      'Falha na autenticação com o Copernicus (HTTP ' + response.status + '). ' +
       'Verifica as credenciais em .env.local.'
     )
   }
@@ -79,10 +52,6 @@ async function getAccessToken(): Promise<string> {
   return data.access_token as string
 }
 
-// =============================================================
-// CONVERSÃO STAC → DOMÍNIO INTERNO
-// =============================================================
-
 function stacFeatureToResult(feature: any): SatelliteImageResult {
   const props = feature.properties || {}
   const bbox = feature.bbox || []
@@ -90,12 +59,11 @@ function stacFeatureToResult(feature: any): SatelliteImageResult {
   const bboxStr = bbox.join(',')
   const timeStr = datetime.split('T')[0]
 
-  // URLs locais via /api/preview (proxy autenticado — ADR-002)
   const thumbnailUrl = bbox.length === 4
-    ? `/api/preview?bbox=${bboxStr}&datetime=${timeStr}&layer=TRUE-COLOR-S2L2A&width=256&height=256`
+    ? '/api/preview?bbox=' + bboxStr + '&datetime=' + timeStr + '&layer=TRUE-COLOR-S2L2A&width=256&height=256'
     : ''
   const previewUrl = bbox.length === 4
-    ? `/api/preview?bbox=${bboxStr}&datetime=${timeStr}&layer=TRUE-COLOR-S2L2A&width=512&height=512`
+    ? '/api/preview?bbox=' + bboxStr + '&datetime=' + timeStr + '&layer=TRUE-COLOR-S2L2A&width=512&height=512'
     : ''
 
   return {
@@ -109,10 +77,6 @@ function stacFeatureToResult(feature: any): SatelliteImageResult {
   }
 }
 
-// =============================================================
-// FUNÇÃO PRINCIPAL DE PESQUISA
-// =============================================================
-
 export async function searchSentinelImages(
   region: Region,
   startDate: string,
@@ -124,7 +88,7 @@ export async function searchSentinelImages(
 
   // Dividir o período em chunks de 6 meses para cobrir todo o intervalo.
   // A API SentinelHub devolve os mais recentes primeiro com limit,
-  // portanto sem dividir só veríamos os últimos meses do intervalo.
+  // portanto sem dividir só veríamos os últimos meses.
   const start = new Date(startDate)
   const end = new Date(endDate)
   const chunks: { from: string; to: string }[] = []
@@ -140,22 +104,23 @@ export async function searchSentinelImages(
     cursor.setMonth(cursor.getMonth() + 6)
   }
 
-  // Fazer um pedido por chunk com timeout independente
+  // Fazer um pedido por chunk com timeout independente de 8s
   const allFeatures: any[] = []
   for (const chunk of chunks) {
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 8000)
-      const response = await fetch(\`\${STAC_URL}/search\`, {
+      const dtRange = chunk.from + 'T00:00:00Z/' + chunk.to + 'T23:59:59Z'
+      const response = await fetch(STAC_URL + '/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': \`Bearer \${token}\`,
+          'Authorization': 'Bearer ' + token,
         },
         body: JSON.stringify({
           collections: ['sentinel-2-l2a'],
           bbox,
-          datetime: \`\${chunk.from}T00:00:00Z/\${chunk.to}T23:59:59Z\`,
+          datetime: dtRange,
           limit: 10,
         }),
         signal: controller.signal,
@@ -179,11 +144,6 @@ export async function searchSentinelImages(
     .slice(0, 50)
 }
 
-
-// =============================================================
-// CONSTRUÇÃO DE URLs DE IMAGEM PÚBLICA
-// =============================================================
-
 export function buildImageUrl(
   imageId: string,
   bandMode: BandMode | string = 'TCI',
@@ -195,5 +155,5 @@ export function buildImageUrl(
   const layer = BAND_TO_LAYER[bandMode] || 'TRUE-COLOR-S2L2A'
   const bboxStr = bbox.join(',')
   const timeStr = datetime.split('T')[0]
-  return `/api/preview?bbox=${bboxStr}&datetime=${timeStr}&layer=${layer}&width=${width}&height=${height}`
+  return '/api/preview?bbox=' + bboxStr + '&datetime=' + timeStr + '&layer=' + layer + '&width=' + width + '&height=' + height
 }
