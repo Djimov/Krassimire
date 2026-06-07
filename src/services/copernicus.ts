@@ -126,7 +126,7 @@ export async function searchSentinelImages(
     collections: ['sentinel-2-l2a'],
     bbox,
     datetime: `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
-    limit: 50,
+    limit: 10,
   }
 
 
