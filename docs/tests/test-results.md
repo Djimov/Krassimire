@@ -2,84 +2,84 @@
 
 Explorador Temporal de Imagens de Satélite
 Krassimire Iankov Djimov · 2301201 · Universidade Aberta
-Última actualização: 2026-05-19 (semana 9)
+Data de execução: 7 de Junho de 2026
 
 ---
 
-## Estado actual (semana 9)
+## Testes unitários (npm test)
 
-A integração funcional com o Copernicus está completa. Os testes podem agora
-ser executados com dados reais. Este documento será preenchido à medida que
-os testes forem executados nas semanas 10–13.
-
-Os 19 casos de teste em validators.test.ts estão prontos a executar com `npm test`.
-
----
-
-## Resultados dos testes unitários
-
-### validators.test.ts (a executar na semana 10)
+**19/19 testes passaram.** Execução em 971ms.
 
 | Suite | Casos | Passaram | Falharam | Notas |
 |---|---|---|---|---|
-| validateDate | 5 | — | — | |
-| validateDateRange | 5 | — | — | Limite alterado para 3650 dias |
-| validateRegion | 6 | — | — | |
-| validateSearchParams | 3 | — | — | |
+| validateDate | 5 | 5 | 0 | Inclui verificação de datas inexistentes (30 Fev) |
+| validateDateRange | 5 | 5 | 0 | Limite actualizado para 3650 dias |
+| validateRegion | 6 | 6 | 0 | |
+| validateSearchParams | 3 | 3 | 0 | |
 
-### Novos testes (a escrever e executar na semana 10–11)
+## Cobertura de código (npm run test:coverage)
 
-| Ficheiro | Casos | Passaram | Falharam | Notas |
+| Módulo | % Stmts | % Branch | % Funcs | % Lines |
 |---|---|---|---|---|
-| i18n.test.ts | — | — | — | |
-| copernicus.test.ts | — | — | — | |
-| geocoding.test.ts | — | — | — | |
-| api-search.test.ts | — | — | — | |
-| api-geocode.test.ts | — | — | — | |
-| api-preview.test.ts | — | — | — | |
+| validators.ts | 96.66 | 88.57 | 100 | 96.66 |
+| i18n.ts | 0 | 100 | 100 | 0 |
+| copernicus.ts | 0 | 100 | 100 | 0 |
+| geocoding.ts | 0 | 100 | 100 | 0 |
+| **lib/ (total)** | **32.04** | **88.88** | **100** | **32.04** |
+
+Nota: A cobertura de i18n, copernicus e geocoding é 0% em statements porque estes
+módulos são testados indirectamente pelas rotas de API, não por testes unitários
+dedicados. Os testes unitários dedicados estão planeados mas a cobertura funcional
+é verificada pelos testes manuais T01–T15.
 
 ---
 
-## Resultados dos testes manuais do MVP (a executar na semana 12)
+## Testes manuais do MVP (T01–T15)
 
-| # | Cenário | Resultado | Data | Notas |
-|---|---|---|---|---|
-| T01 | Abrir a aplicação | — | — | |
-| T02 | Seleccionar lugar popular | — | — | |
-| T03 | Pesquisa por topónimo | — | — | |
-| T04 | Período com calendário | — | — | |
-| T05 | Nível de nuvens | — | — | |
-| T06 | Pesquisa com resultados | — | — | |
-| T07 | Pesquisa sem resultados | — | — | |
-| T08 | Seleccionar imagem | — | — | |
-| T09 | Banda NDVI + legenda | — | — | |
-| T10 | Banda SWIR + legenda | — | — | |
-| T11 | Comparar duas datas | — | — | |
-| T12 | Date picker na comparação | — | — | |
-| T13 | Toggle PT/EN | — | — | |
-| T14 | Nova pesquisa | — | — | |
-| T15 | Editar passo anterior | — | — | |
+Data de execução: 7 de Junho de 2026
+Browser: Chrome no macOS
 
----
+| # | Cenário | Resultado | Notas |
+|---|---|---|---|
+| T01 | Abrir a aplicação | Passou | Carrega em <2s |
+| T02 | Seleccionar lugar popular | Passou | Lisboa seleccionada, passo 2 aparece |
+| T03 | Pesquisa por topónimo | Passou | "Sofia" e "Teheran" devolvem resultados |
+| T04 | Período com calendário | Passou | Date pickers funcionam correctamente |
+| T05 | Nível de nuvens | Passou | Passo 4 desbloqueado com resumo correcto |
+| T06 | Pesquisa com resultados | Passou | Timeline mostra imagens reais com datas |
+| T07 | Pesquisa sem resultados | Passou* | *A Antártida tem cobertura Sentinel-2. Testado com intervalo de 1 dia e ≤10% nuvens para obter 0 resultados |
+| T08 | Seleccionar imagem | Passou | Imagem principal actualiza correctamente |
+| T09 | Banda NDVI + legenda | Passou | Legenda de vegetação aparece |
+| T10 | Banda SWIR + legenda | Passou | Legenda de humidade aparece |
+| T11 | Comparar duas datas | Passou | Painel Antes/Depois funcional |
+| T12 | Date picker na comparação | Passou* | *Limitação conhecida: a selecção automática pode escolher imagens parciais (tiles que não cobrem toda a região). Melhoria futura: mostrar candidatos e deixar o utilizador escolher |
+| T13 | Toggle PT/EN | Passou | Interface muda sem recarregar |
+| T14 | Nova pesquisa | Passou | Volta ao passo 1, dados limpos |
+| T15 | Editar passo anterior | Passou | Botão lápis funciona correctamente |
 
-## Resultados dos testes de erro (a executar na semana 12)
-
-| # | Cenário | Resultado | Data | Notas |
-|---|---|---|---|---|
-| E01 | Rede cortada | — | — | |
-| E02 | Datas inválidas | — | — | |
-| E03 | Região pequena | — | — | |
-| E04 | Intervalo >10 anos | — | — | |
-| E05 | Credenciais inválidas | — | — | |
+**Resultado: 15/15 passaram** (2 com observações documentadas)
 
 ---
 
-## Cobertura de código
+## Testes de erro (E01–E05)
 
-| Módulo | Cobertura | Objectivo |
-|---|---|---|
-| src/lib/ | — | ≥70% |
-| src/services/ | — | ≥60% |
-| Total | — | — |
+| # | Cenário | Resultado | Notas |
+|---|---|---|---|
+| E01 | Rede cortada | A testar | |
+| E02 | Datas inválidas | A testar | Date pickers previnem selecção inválida (min/max) |
+| E03 | Região pequena | A testar | |
+| E04 | Intervalo >10 anos | A testar | |
+| E05 | Credenciais erradas | A testar | |
 
-*Será preenchido após execução de `npm run test:coverage` na semana 11.*
+---
+
+## Limitações conhecidas
+
+1. **Imagens parciais na comparação** — O Sentinel-2 usa tiles fixos de 110×110 km. Quando
+   a região seleccionada intersecta a fronteira entre tiles, a selecção automática pode
+   escolher uma imagem que só cobre parte da região. Solução futura: apresentar vários
+   candidatos para a data escolhida.
+
+2. **Cobertura de testes unitários** — Os módulos copernicus.ts, geocoding.ts e i18n.ts
+   não têm testes unitários dedicados (0% stmts). A funcionalidade é verificada pelos
+   testes manuais mas testes com mocks devem ser escritos para o relatório final.
