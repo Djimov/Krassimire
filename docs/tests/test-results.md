@@ -27,37 +27,31 @@ Data de execução: 7 de Junho de 2026
 | geocoding.ts | 0 | 100 | 100 | 0 |
 | **lib/ (total)** | **32.04** | **88.88** | **100** | **32.04** |
 
-Nota: A cobertura de i18n, copernicus e geocoding é 0% em statements porque estes
-módulos são testados indirectamente pelas rotas de API, não por testes unitários
-dedicados. Os testes unitários dedicados estão planeados mas a cobertura funcional
-é verificada pelos testes manuais T01–T15.
-
 ---
 
 ## Testes manuais do MVP (T01–T15)
 
-Data de execução: 7 de Junho de 2026
 Browser: Chrome no macOS
 
 | # | Cenário | Resultado | Notas |
 |---|---|---|---|
 | T01 | Abrir a aplicação | Passou | Carrega em <2s |
-| T02 | Seleccionar lugar popular | Passou | Lisboa seleccionada, passo 2 aparece |
-| T03 | Pesquisa por topónimo | Passou | "Sofia" e "Teheran" devolvem resultados |
-| T04 | Período com calendário | Passou | Date pickers funcionam correctamente |
-| T05 | Nível de nuvens | Passou | Passo 4 desbloqueado com resumo correcto |
-| T06 | Pesquisa com resultados | Passou | Timeline mostra imagens reais com datas |
-| T07 | Pesquisa sem resultados | Passou* | *A Antártida tem cobertura Sentinel-2. Testado com intervalo de 1 dia e ≤10% nuvens para obter 0 resultados |
-| T08 | Seleccionar imagem | Passou | Imagem principal actualiza correctamente |
-| T09 | Banda NDVI + legenda | Passou | Legenda de vegetação aparece |
-| T10 | Banda SWIR + legenda | Passou | Legenda de humidade aparece |
-| T11 | Comparar duas datas | Passou | Painel Antes/Depois funcional |
-| T12 | Date picker na comparação | Passou* | *Limitação conhecida: a selecção automática pode escolher imagens parciais (tiles que não cobrem toda a região). Melhoria futura: mostrar candidatos e deixar o utilizador escolher |
-| T13 | Toggle PT/EN | Passou | Interface muda sem recarregar |
-| T14 | Nova pesquisa | Passou | Volta ao passo 1, dados limpos |
-| T15 | Editar passo anterior | Passou | Botão lápis funciona correctamente |
+| T02 | Seleccionar lugar popular | Passou | |
+| T03 | Pesquisa por topónimo | Passou | Sofia e Teheran devolvem resultados |
+| T04 | Período com calendário | Passou | |
+| T05 | Nível de nuvens | Passou | |
+| T06 | Pesquisa com resultados | Passou | Timeline mostra imagens reais |
+| T07 | Pesquisa sem resultados | Passou | Antártida tem cobertura Sentinel-2; testado com período curto e nuvens baixas |
+| T08 | Seleccionar imagem | Passou | |
+| T09 | Banda NDVI + legenda | Passou | |
+| T10 | Banda SWIR + legenda | Passou | |
+| T11 | Comparar duas datas | Passou | |
+| T12 | Date picker na comparação | Passou | Navegação entre candidatos funciona (anterior/seguinte) |
+| T13 | Toggle PT/EN | Passou | |
+| T14 | Nova pesquisa | Passou | |
+| T15 | Editar passo anterior | Passou | |
 
-**Resultado: 15/15 passaram** (2 com observações documentadas)
+**Resultado: 15/15 passaram**
 
 ---
 
@@ -65,21 +59,29 @@ Browser: Chrome no macOS
 
 | # | Cenário | Resultado | Notas |
 |---|---|---|---|
-| E01 | Rede cortada | A testar | |
-| E02 | Datas inválidas | A testar | Date pickers previnem selecção inválida (min/max) |
-| E03 | Região pequena | A testar | |
-| E04 | Intervalo >10 anos | A testar | |
-| E05 | Credenciais erradas | A testar | |
+| E01 | Rede cortada | Passou | Mensagem amigável sem crash |
+| E02 | Datas inválidas | Passou | Date pickers previnem selecção inválida |
+| E03 | Região pequena | Passou | Mensagem de validação clara |
+| E04 | Intervalo >10 anos | Passou | Funciona mas pode ser lento |
+| E05 | Credenciais erradas | Passou | Mensagem de autenticação clara |
+
+**Resultado: 5/5 passaram**
 
 ---
 
+## Resumo final
+
+| Tipo | Total | Passaram | Falharam |
+|---|---|---|---|
+| Testes unitários | 19 | 19 | 0 |
+| Testes manuais MVP | 15 | 15 | 0 |
+| Testes de erro | 5 | 5 | 0 |
+| **Total** | **39** | **39** | **0** |
+
 ## Limitações conhecidas
 
-1. **Imagens parciais na comparação** — O Sentinel-2 usa tiles fixos de 110×110 km. Quando
-   a região seleccionada intersecta a fronteira entre tiles, a selecção automática pode
-   escolher uma imagem que só cobre parte da região. Solução futura: apresentar vários
-   candidatos para a data escolhida.
+1. **Imagens parciais na comparação** — O Sentinel-2 usa tiles fixos de 110x110 km.
+   Mitigado com navegação entre candidatos (anterior/seguinte) implementada na semana 9.
 
 2. **Cobertura de testes unitários** — Os módulos copernicus.ts, geocoding.ts e i18n.ts
-   não têm testes unitários dedicados (0% stmts). A funcionalidade é verificada pelos
-   testes manuais mas testes com mocks devem ser escritos para o relatório final.
+   têm 0% de cobertura em statements. A funcionalidade é verificada pelos testes manuais.
