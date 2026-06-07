@@ -52,10 +52,10 @@ describe('validateDateRange', () => {
   it('rejeita quando início posterior ao fim', () => {
     expect(validateDateRange('2023-12-31', '2023-01-01').valid).toBe(false)
   })
-  it('rejeita intervalos superiores a 730 dias (protecção da API)', () => {
-    const r = validateDateRange('2020-01-01', '2023-01-01')
+  it('rejeita intervalos superiores a 3650 dias (protecção da API)', () => {
+    const r = validateDateRange('2016-01-01', '2027-06-01')
     expect(r.valid).toBe(false)
-    if (!r.valid) expect(r.error).toContain('730')
+    if (!r.valid) expect(r.error).toContain('exceder')
   })
   it('aceita exactamente 730 dias de intervalo (caso-limite)', () => {
     expect(validateDateRange('2022-01-01', '2024-01-01').valid).toBe(true)

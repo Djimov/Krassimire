@@ -30,9 +30,12 @@ export function validateDate(dateStr: string): ValidationResult {
   if (!isoPattern.test(dateStr)) {
     return { valid: false, error: `Data inválida: "${dateStr}". Use o formato AAAA-MM-DD.` }
   }
-  const date = new Date(dateStr)
+  const date = new Date(dateStr + 'T00:00:00Z')
   if (isNaN(date.getTime())) {
     return { valid: false, error: `Data inválida: "${dateStr}" não é uma data real.` }
+  }
+  if (date.toISOString().slice(0, 10) !== dateStr) {
+    return { valid: false, error: `Data inexistente: "${dateStr}". Verifica o dia e o mês.` }
   }
   const SENTINEL_START = new Date('2015-06-23')
   if (date < SENTINEL_START) {
