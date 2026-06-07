@@ -129,12 +129,6 @@ export async function searchSentinelImages(
     limit: 50,
   }
 
-  if (maxCloudCoverage < 100) {
-    requestBody.filter = {
-      op: 'lt',
-      args: [{ property: 'eo:cloud_cover' }, maxCloudCoverage]
-    }
-    requestBody['filter-lang'] = 'cql2-json'
   }
 
   const response = await fetch(`${STAC_URL}/search`, {
