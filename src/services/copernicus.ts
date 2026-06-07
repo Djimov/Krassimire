@@ -129,7 +129,6 @@ export async function searchSentinelImages(
     limit: 50,
   }
 
-  }
 
   const response = await fetch(`${STAC_URL}/search`, {
     method: 'POST',
