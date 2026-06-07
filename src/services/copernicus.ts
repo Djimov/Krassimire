@@ -127,7 +127,6 @@ export async function searchSentinelImages(
     bbox,
     datetime: `${startDate}T00:00:00Z/${endDate}T23:59:59Z`,
     limit: 50,
-    sortby: [{ field: 'properties.datetime', direction: 'asc' }],
   }
 
 
