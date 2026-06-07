@@ -32,6 +32,10 @@ interface PageState {
   isComparing: boolean
   compareLeftIndex: number
   compareRightIndex: number
+  compareLeftCandidates: number[]
+  compareLeftCandPos: number
+  compareRightCandidates: number[]
+  compareRightCandPos: number
 }
 
 const today = new Date().toISOString().split('T')[0]
@@ -52,6 +56,10 @@ const INITIAL_STATE: PageState = {
   isComparing: false,
   compareLeftIndex: 0,
   compareRightIndex: 1,
+  compareLeftCandidates: [],
+  compareLeftCandPos: 0,
+  compareRightCandidates: [],
+  compareRightCandPos: 0,
 }
 
 const CLOUD_OPTIONS = [
@@ -159,20 +167,18 @@ export default function HomePage() {
     }
   }, [state.region, state.startDate, state.endDate, state.maxCloud, state.activeBand, isPt])
 
-  // Encontrar a imagem com menor cobertura de nuvens mais próxima de uma data
-  const findClosestImage = useCallback((targetDate: string): number => {
-    if (state.results.length === 0) return 0
+  // Encontrar as N imagens mais próximas de uma data, ordenadas por proximidade + nuvens
+  const findClosestImages = useCallback((targetDate: string, count: number = 5): number[] => {
+    if (state.results.length === 0) return [0]
     const target = new Date(targetDate).getTime()
-    let bestIdx = 0
-    let bestDist = Infinity
-    state.results.forEach((r, i) => {
-      const dist = Math.abs(new Date(r.acquisitionDate).getTime() - target)
-      if (dist < bestDist || (dist === bestDist && r.cloudCoverage < state.results[bestIdx].cloudCoverage)) {
-        bestDist = dist
-        bestIdx = i
-      }
-    })
-    return bestIdx
+    const scored = state.results.map((r, i) => ({
+      idx: i,
+      dist: Math.abs(new Date(r.acquisitionDate).getTime() - target),
+      cloud: r.cloudCoverage,
+    }))
+    // Ordenar por distância temporal, depois por cobertura de nuvens
+    scored.sort((a, b) => a.dist - b.dist || a.cloud - b.cloud)
+    return scored.slice(0, count).map(s => s.idx)
   }, [state.results])
 
   return (
@@ -396,9 +402,23 @@ export default function HomePage() {
                       selectedIndex={state.compareLeftIndex}
                       layerName={layerName}
                       isPt={isPt}
+                      candidates={state.compareLeftCandidates}
+                      candidatePos={state.compareLeftCandPos}
                       onSelectDate={(dateStr) => {
-                        const idx = findClosestImage(dateStr)
-                        setState(prev => ({ ...prev, compareLeftIndex: idx }))
+                        const candidates = findClosestImages(dateStr)
+                        setState(prev => ({ ...prev, compareLeftIndex: candidates[0], compareLeftCandidates: candidates, compareLeftCandPos: 0 }))
+                      }}
+                      onNextCandidate={() => {
+                        const cands = state.compareLeftCandidates
+                        if (cands.length === 0) return
+                        const next = (state.compareLeftCandPos + 1) % cands.length
+                        setState(prev => ({ ...prev, compareLeftIndex: cands[next], compareLeftCandPos: next }))
+                      }}
+                      onPrevCandidate={() => {
+                        const cands = state.compareLeftCandidates
+                        if (cands.length === 0) return
+                        const prev2 = (state.compareLeftCandPos - 1 + cands.length) % cands.length
+                        setState(prev => ({ ...prev, compareLeftIndex: cands[prev2], compareLeftCandPos: prev2 }))
                       }}
                     />
                     {/* DEPOIS */}
@@ -408,9 +428,23 @@ export default function HomePage() {
                       selectedIndex={state.compareRightIndex}
                       layerName={layerName}
                       isPt={isPt}
+                      candidates={state.compareRightCandidates}
+                      candidatePos={state.compareRightCandPos}
                       onSelectDate={(dateStr) => {
-                        const idx = findClosestImage(dateStr)
-                        setState(prev => ({ ...prev, compareRightIndex: idx }))
+                        const candidates = findClosestImages(dateStr)
+                        setState(prev => ({ ...prev, compareRightIndex: candidates[0], compareRightCandidates: candidates, compareRightCandPos: 0 }))
+                      }}
+                      onNextCandidate={() => {
+                        const cands = state.compareRightCandidates
+                        if (cands.length === 0) return
+                        const next = (state.compareRightCandPos + 1) % cands.length
+                        setState(prev => ({ ...prev, compareRightIndex: cands[next], compareRightCandPos: next }))
+                      }}
+                      onPrevCandidate={() => {
+                        const cands = state.compareRightCandidates
+                        if (cands.length === 0) return
+                        const prev2 = (state.compareRightCandPos - 1 + cands.length) % cands.length
+                        setState(prev => ({ ...prev, compareRightIndex: cands[prev2], compareRightCandPos: prev2 }))
                       }}
                     />
                   </div>
@@ -505,13 +539,17 @@ function BandLegend({ band, isPt }: { band: BandMode; isPt: boolean }) {
 // COMPONENTE: Coluna de comparação com date picker
 // =============================================================
 
-function CompareColumn({ label, results, selectedIndex, layerName, isPt, onSelectDate }: {
+function CompareColumn({ label, results, selectedIndex, layerName, isPt, onSelectDate, candidates, candidatePos, onNextCandidate, onPrevCandidate }: {
   label: string
   results: SatelliteImageResult[]
   selectedIndex: number
   layerName: string
   isPt: boolean
   onSelectDate: (dateStr: string) => void
+  candidates?: number[]
+  candidatePos?: number
+  onNextCandidate?: () => void
+  onPrevCandidate?: () => void
 }) {
   const r = results[selectedIndex]
   const src = r?.thumbnailUrl
@@ -541,12 +579,28 @@ function CompareColumn({ label, results, selectedIndex, layerName, isPt, onSelec
         />
       </div>
 
-      {/* Info da imagem seleccionada */}
+      {/* Info da imagem seleccionada + navegação entre candidatos */}
       {r && (
-        <div style={{ fontSize: 11, color: '#777', marginBottom: 6, textAlign: 'center' }}>
-          {new Date(r.acquisitionDate).toLocaleDateString(isPt ? 'pt-PT' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-          {' · '}{r.cloudCoverage.toFixed(1)}% {isPt ? 'nuvens' : 'clouds'}
-          {' · '}{isPt ? 'imagem mais próxima com menos nuvens' : 'closest image with least clouds'}
+        <div>
+          <div style={{ fontSize: 11, color: '#777', marginBottom: 4, textAlign: 'center' }}>
+            {new Date(r.acquisitionDate).toLocaleDateString(isPt ? 'pt-PT' : 'en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+            {' · '}{r.cloudCoverage.toFixed(1)}% {isPt ? 'nuvens' : 'clouds'}
+          </div>
+          {candidates && candidates.length > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <button onClick={onPrevCandidate}
+                style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+                ← {isPt ? 'anterior' : 'prev'}
+              </button>
+              <span style={{ fontSize: 10, color: '#999' }}>
+                {(candidatePos ?? 0) + 1} / {candidates.length} {isPt ? 'candidatos' : 'candidates'}
+              </span>
+              <button onClick={onNextCandidate}
+                style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+                {isPt ? 'seguinte' : 'next'} →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
