@@ -158,9 +158,11 @@ export async function searchSentinelImages(
 
   return features
     .map(stacFeatureToResult)
+    .filter((r: SatelliteImageResult) => r.cloudCoverage <= maxCloudCoverage)
     .sort((a: SatelliteImageResult, b: SatelliteImageResult) =>
       new Date(a.acquisitionDate).getTime() - new Date(b.acquisitionDate).getTime()
     )
+    .slice(0, 50)
 }
 
 // =============================================================
