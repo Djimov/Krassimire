@@ -52,17 +52,16 @@ async function getAccessToken(): Promise<string> {
   return data.access_token as string
 }
 
-function stacFeatureToResult(feature: any): SatelliteImageResult {
+function stacFeatureToResult(feature: any, searchBbox: number[]): SatelliteImageResult {
   const props = feature.properties || {}
-  const bbox = feature.bbox || []
   const datetime = props.datetime || props.created || ''
-  const bboxStr = bbox.join(',')
+  const bboxStr = searchBbox.join(',')
   const timeStr = datetime.split('T')[0]
 
-  const thumbnailUrl = bbox.length === 4
+  const thumbnailUrl = searchBbox.length === 4
     ? '/api/preview?bbox=' + bboxStr + '&datetime=' + timeStr + '&layer=TRUE-COLOR-S2L2A&width=256&height=256'
     : ''
-  const previewUrl = bbox.length === 4
+  const previewUrl = searchBbox.length === 4
     ? '/api/preview?bbox=' + bboxStr + '&datetime=' + timeStr + '&layer=TRUE-COLOR-S2L2A&width=512&height=512'
     : ''
 
@@ -136,7 +135,7 @@ export async function searchSentinelImages(
   }
 
   return allFeatures
-    .map(stacFeatureToResult)
+    .map((f: any) => stacFeatureToResult(f, bbox))
     .filter((r: SatelliteImageResult) => r.cloudCoverage <= maxCloudCoverage)
     .sort((a: SatelliteImageResult, b: SatelliteImageResult) =>
       new Date(a.acquisitionDate).getTime() - new Date(b.acquisitionDate).getTime()
